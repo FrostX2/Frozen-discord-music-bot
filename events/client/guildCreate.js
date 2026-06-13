@@ -5,7 +5,7 @@ module.exports = {
   async execute(guild, client) {
     try {
       const channel = await guild.channels.create({
-        name: "FuriMusic",
+        name: "furimusic",
         type: ChannelType.GuildText,
         topic: "Paste a song name or link here to play music",
         permissionOverwrites: [

@@ -3,11 +3,15 @@ const { ActivityType, ChannelType, PermissionsBitField, EmbedBuilder } = require
 async function ensureFuriChannels(client) {
   const setup = {};
   for (const guild of client.guilds.cache.values()) {
-    let channel = guild.channels.cache.find(c => c.name === "furimusic" && c.type === ChannelType.GuildText);
+    let channel;
+    try {
+      const channels = await guild.channels.fetch();
+      channel = channels.find(c => c.name === "furimusic" && c.type === ChannelType.GuildText);
+    } catch {}
     if (!channel) {
       try {
         channel = await guild.channels.create({
-          name: "FuriMusic",
+          name: "furimusic",
           type: ChannelType.GuildText,
           topic: "Paste a song name or link here to play music",
           permissionOverwrites: [{
@@ -22,7 +26,7 @@ async function ensureFuriChannels(client) {
           .setFooter({ text: "FuriMusic — Paste a song name or link to play" });
         await channel.send({ embeds: [embed] });
       } catch (err) {
-        console.error(`Failed to create FuriMusic in ${guild.name}:`, err.message);
+        console.error(`Failed to create furimusic in ${guild.name}:`, err.message);
         continue;
       }
     }
