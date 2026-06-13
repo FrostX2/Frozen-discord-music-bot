@@ -43,7 +43,7 @@ module.exports = {
         ensureFuriChannels(client);
 
         let activities = [
-                `music with PinkDuwc._#3443`,
+                `music with NotFrost`,
                 `${client.user.username}`,
                 `${
                     client.guilds.cache.size

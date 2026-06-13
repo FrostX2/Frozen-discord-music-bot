@@ -1,4 +1,4 @@
-﻿# Music-Bot-Discord.js-v14 from PinkDuwc._#3443
+﻿# Music-Bot-Discord.js-v14 — NotFrost
 
 ![LOC](https://tokei.rs/b1/github/hongducdev/Music-Bot-Discord.js-v14?category=code)
 
