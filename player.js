@@ -4,6 +4,7 @@ const { spawn } = require('child_process');
 const https = require('https');
 const { existsSync, chmodSync } = require('fs');
 const { join } = require('path');
+const { PassThrough } = require('stream');
 
 const queues = new Map();
 const YTDLP_PATH = join(__dirname, 'yt-dlp');
@@ -120,10 +121,27 @@ async function playSong(guildId) {
       ytArgs.unshift('--cookies', join(__dirname, 'cookies.txt'));
     }
     const proc = spawn(YTDLP_PATH, ytArgs.concat(song.url), { stdio: ['ignore', 'pipe', 'pipe'] });
-    proc.stderr.on('data', () => {});
-    const stream = proc.stdout;
 
-    const probe = await demuxProbe(stream);
+    let stderrBuf = '';
+    proc.stderr.on('data', (d) => { stderrBuf += d; });
+
+    const pass = new PassThrough();
+    proc.stdout.pipe(pass);
+
+    const firstChunk = await Promise.race([
+      new Promise((resolve, reject) => {
+        pass.once('data', resolve);
+        proc.on('close', (code) => {
+          if (code !== 0) reject(new Error(`yt-dlp exited ${code}: ${stderrBuf.split('\n').slice(-3).join('\\n')}`));
+          else reject(new Error('yt-dlp produced no audio output'));
+        });
+        proc.on('error', reject);
+      }),
+      new Promise((_, reject) => setTimeout(() => reject(new Error('yt-dlp timed out (30s)')), 30000)),
+    ]);
+
+    pass.unshift(firstChunk);
+    const probe = await demuxProbe(pass);
     const resource = createAudioResource(probe.stream, { inputType: probe.type, inlineVolume: true });
     resource.volume.setVolumeLogarithmic(queue.volume / 100);
     queue.player.play(resource);
@@ -145,7 +163,6 @@ async function playSong(guildId) {
       playSong(guildId);
     });
 
-    proc.on('error', () => cleanup());
     proc.on('close', (code) => {
       if (code !== 0 && queue.player.state.status !== AudioPlayerStatus.Idle) {
         queue.player.stop();
