@@ -114,6 +114,7 @@ async function playSong(guildId) {
     const ytArgs = [
       '--no-warnings',
       '--no-playlist',
+      '--extractor-args', 'youtube:player_client=android',
       '-f', 'ba[ext=webm]/ba/b',
       '-o', '-',
     ];
