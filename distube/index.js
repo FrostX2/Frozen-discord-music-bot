@@ -42,6 +42,9 @@ client.distube = {
   play: (voiceChannel, keyword, opts) => {
     player.play(opts.textChannel, voiceChannel, keyword, opts.member);
   },
+  previous: (interaction) => {
+    player.previous(interaction.guildId);
+  },
   voices: {
     leave: (interaction) => {
       player.stop(interaction.guildId);

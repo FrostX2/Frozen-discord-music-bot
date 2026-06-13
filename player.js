@@ -1,271 +1,147 @@
-const { createAudioPlayer, createAudioResource, entersState, VoiceConnectionStatus, joinVoiceChannel, AudioPlayerStatus } = require('@discordjs/voice');
-const { spawn, execSync } = require('child_process');
-const { unlink, mkdir, access } = require('fs/promises');
+const { createAudioPlayer, createAudioResource, entersState, VoiceConnectionStatus, joinVoiceChannel, AudioPlayerStatus, demuxProbe, StreamType } = require('@discordjs/voice');
+const play = require('play-dl');
 const { join } = require('path');
-const { randomBytes } = require('crypto');
 
-// Extend PATH for user-installed binaries (Render)
-process.env.PATH = `${process.env.HOME}/.local/bin:${process.env.HOME}/ffmpeg:${process.env.PATH}`;
-
-// Resolve yt-dlp path
-const YTDLP = process.env.YT_DLP || (() => {
-  try {
-    const p = execSync('which yt-dlp 2>/dev/null || command -v yt-dlp 2>/dev/null').toString().trim();
-    return p || 'yt-dlp';
-  } catch { return 'yt-dlp'; }
-})();
-
-// Resolve ffmpeg path
-const FFMPEG = process.env.FFMPEG_PATH || (() => {
-  try {
-    const p = execSync('which ffmpeg 2>/dev/null || command -v ffmpeg 2>/dev/null').toString().trim();
-    return p || 'ffmpeg';
-  } catch { return 'ffmpeg'; }
-})();
-const { existsSync } = require('fs');
-
-const TEMP_DIR = '/tmp/furimusic';
 const COOKIES_PATH = join(__dirname, 'cookies.txt');
 
+// Authenticate with cookies if available
+try {
+  const { readFileSync } = require('fs');
+  const cookies = readFileSync(COOKIES_PATH, 'utf8');
+  if (cookies.includes('.youtube.com')) {
+    play.setToken({ youtube: { cookie: cookies } });
+  }
+} catch {}
+
 const queues = new Map();
-const progressIntervals = new Map();
 
 function getQueue(guildId) {
   if (!queues.has(guildId)) {
     queues.set(guildId, {
       songs: [],
+      current: null,
+      volume: 50,
+      loop: false,
       player: createAudioPlayer(),
       connection: null,
-      current: null,
-      loop: false,
-      startTime: 0,
-      volume: 100,
-      resource: null,
       textChannel: null,
     });
   }
   return queues.get(guildId);
 }
 
-function ytArgs(extra = []) {
-  const args = [
-    '--cookies', COOKIES_PATH,
-    '--geo-bypass',
-    '--no-warnings',
-    '--extractor-retries', '3',
-    '--extractor-args', 'youtube:player_skip=js',
-  ];
-  if (extra) args.push(...extra);
-  return args;
-}
-
-function execAsync(cmd, args) {
-  return new Promise((resolve, reject) => {
-    const proc = spawn(cmd, args, { stdio: ['pipe', 'pipe', 'pipe'] });
-    let stdout = '', stderr = '';
-    proc.stdout.on('data', d => stdout += d);
-    proc.stderr.on('data', d => stderr += d);
-    proc.on('error', reject);
-    proc.on('exit', code => {
-      if (code === 0) resolve(stdout.trim());
-      else reject(new Error(stderr.trim() || `Exit code ${code}`));
-    });
-  });
-}
-
-async function search(query) {
-  const isUrl = query.match(/https?:\/\/\S+/i);
-  let searchQuery = query;
-  if (isUrl) {
-    const isYt = query.match(/youtube\.com|youtu\.be|music\.youtube/i);
-    if (isYt) return { url: query };
-    try {
-      const controller = new AbortController();
-      const timer = setTimeout(() => controller.abort(), 5000);
-      const res = await fetch(query, { signal: controller.signal });
-      clearTimeout(timer);
-      const html = await res.text();
-      const m = html.match(/<meta\s+(?:property|name)="(?:og:)?title"\s+content="([^"]+)"/i) || html.match(/<title>([^<]+)<\/title>/i);
-      if (m) searchQuery = m[1].replace(/&amp;/g, '&').replace(/&#(\d+);/g, (_, c) => String.fromCharCode(c));
-    } catch { }
-  }
-
-  const stdout = await execAsync(YTDLP, [
-    '--cookies', COOKIES_PATH,
-    '--geo-bypass',
-    '--no-warnings',
-    '--extractor-args', 'youtube:player_skip=js',
-    '--dump-single-json', '--flat-playlist', '--no-playlist',
-    `ytsearch:${searchQuery}`,
-  ]);
-  const data = JSON.parse(stdout);
-  const entries = data.entries || [];
-  if (!entries.length) throw new Error(`No results found for "${searchQuery}"`);
-  const entry = entries[0];
-  return { url: entry.url || entry.webpage_url, title: entry.title };
-}
-
-async function resolveInfo(url) {
-  const stdout = await execAsync(YTDLP, [
-    '--cookies', COOKIES_PATH,
-    '--geo-bypass',
-    '--no-warnings',
-    '--extractor-args', 'youtube:player_skip=js',
-    '--dump-single-json', '--no-playlist',
-    url,
-  ]);
-  return JSON.parse(stdout);
-}
-
-async function downloadSong(song) {
-  await mkdir(TEMP_DIR, { recursive: true });
-  const fileId = randomBytes(8).toString('hex');
-  const outputPath = join(TEMP_DIR, `${fileId}.%(ext)s`);
-  await execAsync(YTDLP, [
-    '--cookies', COOKIES_PATH,
-    '--geo-bypass',
-    '--no-warnings',
-    '--extractor-retries', '3',
-    '--extractor-args', 'youtube:player_skip=js',
-    '-f', 'best', '--extract-audio', '--audio-format', 'mp3',
-    '-o', outputPath, '--no-playlist', song.url,
-  ]);
-  return join(TEMP_DIR, `${fileId}.mp3`);
-}
-
 async function playSong(guildId) {
   const queue = getQueue(guildId);
-  if (queue.songs.length === 0) {
+  if (!queue.songs.length || !queue.connection) {
     queue.current = null;
-    clearInterval(progressIntervals.get(guildId));
-    progressIntervals.delete(guildId);
     return;
   }
-
   const song = queue.songs[0];
   queue.current = song;
-
   try {
-    const filePath = await downloadSong(song);
-    song.filePath = filePath;
-
-    const ffmpeg = spawn(FFMPEG, [
-      '-i', filePath, '-f', 'opus', '-ar', '48000', '-ac', '2',
-      '-b:a', '128k', '-loglevel', 'error', 'pipe:1',
-    ], { stdio: ['pipe', 'pipe', 'pipe'] });
-
-    const stream = ffmpeg.stdout;
-    ffmpeg.stderr.on('data', () => {});
-    ffmpeg.on('error', err => console.error('ffmpeg error:', err.message));
-
-    queue.resource = createAudioResource(stream, { inlineVolume: true });
-    queue.resource.volume.setVolume(queue.volume / 100);
-    queue.player.play(queue.resource);
-    queue.startTime = Date.now();
-
-    if (queue.connection) queue.connection.subscribe(queue.player);
-
-    queue.player.removeAllListeners(AudioPlayerStatus.Idle);
-    queue.player.removeAllListeners('error');
-
+    const audioStream = await play.stream(song.url, { quality: 0 });
+    const probe = await demuxProbe(audioStream.stream);
+    const resource = createAudioResource(probe.stream, { inputType: probe.type, inlineVolume: true });
+    resource.volume.setVolumeLogarithmic(queue.volume / 100);
+    queue.player.play(resource);
+    queue.connection.subscribe(queue.player);
     queue.player.once(AudioPlayerStatus.Idle, () => {
-      if (queue.current?.filePath) unlink(queue.current.filePath).catch(() => {});
-      if (queue.loop && queue.current) queue.songs.unshift({ ...queue.current, filePath: undefined });
-      queue.songs.shift();
-      playSong(guildId).catch(err => console.error('playSong idle error:', err.message));
-    });
-
-    queue.player.once('error', err => {
-      console.error('Player error:', err.message);
-      if (queue.current?.filePath) unlink(queue.current.filePath).catch(() => {});
-      queue.songs.shift();
-      playSong(guildId).catch(e => console.error('playSong player error:', e.message));
+      if (queue.loop) {
+        queue.songs.push(queue.songs.shift());
+      } else {
+        queue.songs.shift();
+      }
+      playSong(guildId);
     });
   } catch (err) {
-    console.error('Play error:', err.message);
-    if (queue.current?.filePath) unlink(queue.current.filePath).catch(() => {});
     queue.songs.shift();
-    playSong(guildId).catch(e => console.error('playSong catch error:', e.message));
+    queue.textChannel?.send(`Error playing: ${err.message}`);
+    playSong(guildId);
   }
 }
 
 module.exports = {
-  getQueue,
-  play: async (textChannel, voiceChannel, query, member) => {
-    const guildId = voiceChannel.guild.id;
+  async play(textChannel, voiceChannel, query, member) {
+    const guildId = voiceChannel.guildId;
     const queue = getQueue(guildId);
     queue.textChannel = textChannel;
-
-    if (!queue.connection || queue.connection.state.status !== VoiceConnectionStatus.Ready) {
+    const isUrl = query.match(/https?:\/\/\S+/i);
+    let song;
+    if (isUrl) {
+      const info = await play.video_info(query);
+      song = { url: info.video_details.url, title: info.video_details.title };
+    } else {
+      const results = await play.search(query, { limit: 1 });
+      if (!results.length) throw new Error(`No results for "${query}"`);
+      song = { url: results[0].url, title: results[0].title };
+    }
+    queue.songs.push(song);
+    if (!queue.connection) {
       queue.connection = joinVoiceChannel({
         channelId: voiceChannel.id,
-        guildId,
+        guildId: voiceChannel.guild.id,
         adapterCreator: voiceChannel.guild.voiceAdapterCreator,
       });
       await entersState(queue.connection, VoiceConnectionStatus.Ready, 20000);
     }
-
-    const result = await search(query);
-    const info = await resolveInfo(result.url);
-    const song = {
-      url: result.url,
-      title: result.title || info.title || 'Unknown',
-      duration: info.duration || 0,
-      thumbnail: info.thumbnail || '',
-      requestedBy: member.user.tag,
-      uploader: info.uploader || info.channel || 'Unknown',
-      views: info.view_count || 0,
-    };
-
-    queue.songs.push(song);
-    if (queue.songs.length === 1) playSong(guildId);
+    if (!queue.current || queue.player.state.status === AudioPlayerStatus.Idle) {
+      playSong(guildId);
+    }
     return song;
   },
-  skip: async (guildId) => {
+
+  skip(guildId) {
     const queue = getQueue(guildId);
-    if (!queue.current) return null;
     queue.player.stop();
-    const skipped = queue.current;
-    return skipped;
   },
-  stop: async (guildId) => {
+
+  stop(guildId) {
     const queue = getQueue(guildId);
     queue.songs = [];
+    queue.loop = false;
     queue.player.stop();
+    queue.connection?.destroy();
+    queue.connection = null;
     queue.current = null;
-    if (queue.connection) {
-      queue.connection.destroy();
-      queue.connection = null;
-    }
-    clearInterval(progressIntervals.get(guildId));
-    progressIntervals.delete(guildId);
+    queues.delete(guildId);
   },
-  pause: async (guildId) => {
+
+  pause(guildId) {
     const queue = getQueue(guildId);
     queue.player.pause();
   },
-  resume: async (guildId) => {
+
+  resume(guildId) {
     const queue = getQueue(guildId);
     queue.player.unpause();
   },
-  setVolume: (guildId, vol) => {
+
+  setVolume(guildId, vol) {
     const queue = getQueue(guildId);
     queue.volume = vol;
-    if (queue.resource) queue.resource.volume.setVolume(vol / 100);
   },
-  setLoop: (guildId, loop) => {
+
+  setLoop(guildId, loop) {
     const queue = getQueue(guildId);
     queue.loop = loop;
   },
-  previous: async (guildId) => {
-    const queue = getQueue(guildId);
-    if (queue.songs.length < 2) throw new Error('No previous song');
-    queue.player.stop();
+
+  getQueue(guildId) {
+    return queues.get(guildId);
   },
-  remove: (guildId, index) => {
+
+  previous(guildId) {
     const queue = getQueue(guildId);
-    if (index < 0 || index >= queue.songs.length) throw new Error('Invalid index');
-    const removed = queue.songs.splice(index, 1);
-    return removed[0];
+    if (queue.songs.length > 1) {
+      queue.songs.unshift(queue.songs.pop());
+      queue.player.stop();
+    }
+  },
+
+  remove(guildId, id) {
+    const queue = getQueue(guildId);
+    if (id > 0 && id <= queue.songs.length) {
+      return queue.songs.splice(id - 1, 1)[0];
+    }
   },
 };

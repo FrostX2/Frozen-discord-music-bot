@@ -15,11 +15,9 @@ const textHandlers = {
     }
   },
   async skip(client, message) {
-    const guildId = message.guildId;
     try {
-      const skipped = await client.player.skip(guildId);
-      if (skipped) message.reply({ embeds: [new EmbedBuilder().setColor(client.config.colorDefault).setDescription("Skipped!")] });
-      else message.reply({ embeds: [new EmbedBuilder().setColor(client.config.colorDefault).setDescription("Nothing is playing!")] });
+      client.player.skip(message.guildId);
+      message.reply({ embeds: [new EmbedBuilder().setColor(client.config.colorDefault).setDescription("Skipped!")] });
     } catch (err) {
       message.reply({ embeds: [new EmbedBuilder().setColor(client.config.colorError).setDescription(`Error: ${err.message}`)] });
     }
@@ -67,7 +65,7 @@ const textHandlers = {
     const id = parseInt(args[0]);
     if (isNaN(id) || id < 1) return message.reply({ embeds: [new EmbedBuilder().setColor(client.config.colorError).setDescription("Provide a valid song ID!")] });
     try {
-      const removed = client.player.remove(message.guildId, id - 1);
+      const removed = client.player.remove(message.guildId, id);
       message.reply({ embeds: [new EmbedBuilder().setColor(client.config.colorDefault).setDescription(`Removed ${removed.title} from queue!`)] });
     } catch (err) {
       message.reply({ embeds: [new EmbedBuilder().setColor(client.config.colorError).setDescription(err.message)] });
