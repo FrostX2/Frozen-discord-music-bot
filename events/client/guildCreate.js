@@ -36,7 +36,7 @@ module.exports = {
         .setColor(client.config.colorDefault || "#00FF00")
         .setTitle("FuriMusic")
         .setDescription("Paste the song name or link here\n\n**Support:** YouTube, Spotify, SoundCloud")
-        .setFooter({ text: "Use /setup to change the music channel" });
+        .setFooter({ text: "FuriMusic — Paste a song name or link to play" });
 
       await channel.send({ embeds: [embed] });
 
