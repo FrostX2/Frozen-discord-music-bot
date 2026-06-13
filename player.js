@@ -111,23 +111,33 @@ async function playSong(guildId) {
   queue.startTime = Date.now();
   try {
     await ensureYtDlp();
-    const ytArgs = [
-      '--no-warnings',
-      '--no-playlist',
-      '--extractor-args', 'youtube:player_client=android',
-      '-f', 'ba[ext=webm]/ba/b',
-      '-o', '-',
-    ];
-    if (existsSync(join(__dirname, 'cookies.txt'))) {
-      ytArgs.unshift('--cookies', join(__dirname, 'cookies.txt'));
-    }
+    const hasCookies = existsSync(join(__dirname, 'cookies.txt'));
+    const ytArgs = hasCookies
+      ? ['--cookies', join(__dirname, 'cookies.txt'),
+         '--no-warnings', '--no-playlist', '-f', 'ba[ext=webm]/ba/b', '-o', '-']
+      : ['--no-warnings', '--no-playlist',
+         '--extractor-args', 'youtube:player_client=android',
+         '-f', 'ba[ext=webm]/ba/b', '-o', '-'];
     const proc = spawn(YTDLP_PATH, ytArgs.concat(song.url), { stdio: ['ignore', 'pipe', 'pipe'] });
 
     let stderrBuf = '';
     proc.stderr.on('data', (d) => { stderrBuf += d; });
 
+    let audioStream = proc.stdout;
+
+    if (!hasCookies) {
+      const ffmpeg = spawn('ffmpeg', [
+        '-i', 'pipe:0', '-f', 'opus', '-ac', '2', '-ar', '48000',
+        '-page_duration', '0', 'pipe:1'
+      ], { stdio: ['pipe', 'pipe', 'pipe'] });
+      proc.stdout.pipe(ffmpeg.stdin);
+      ffmpeg.stderr.on('data', () => {});
+      audioStream = ffmpeg.stdout;
+      proc.on('close', () => { ffmpeg.kill(); });
+    }
+
     const pass = new PassThrough();
-    proc.stdout.pipe(pass);
+    audioStream.pipe(pass);
 
     const firstChunk = await Promise.race([
       new Promise((resolve, reject) => {
