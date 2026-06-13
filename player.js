@@ -7,6 +7,8 @@ const { join } = require('path');
 const queues = new Map();
 const YTDLP_PATH = join(__dirname, 'yt-dlp');
 
+let ytDlpPromise = null;
+
 function formatDuration(seconds) {
   if (!seconds) return "0:00";
   const h = Math.floor(seconds / 3600);
@@ -32,10 +34,11 @@ function buildSong(info, member) {
 
 async function ensureYtDlp() {
   if (existsSync(YTDLP_PATH)) return;
+  if (ytDlpPromise) return ytDlpPromise;
   const arch = execSync('uname -m', { encoding: 'utf8' }).trim();
   const bin = arch === 'aarch64' ? 'yt-dlp_linux_aarch64' : 'yt-dlp_linux';
   const url = `https://github.com/yt-dlp/yt-dlp/releases/latest/download/${bin}`;
-  return new Promise((resolve, reject) => {
+  ytDlpPromise = new Promise((resolve, reject) => {
     console.log(`Downloading yt-dlp (${bin})...`);
     const curl = spawn('curl', ['-fsL', url, '-o', YTDLP_PATH], { stdio: 'inherit' });
     curl.on('close', code => {
@@ -46,6 +49,7 @@ async function ensureYtDlp() {
     });
     curl.on('error', reject);
   });
+  return ytDlpPromise;
 }
 
 function getQueue(guildId) {
