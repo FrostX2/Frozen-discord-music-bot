@@ -6,12 +6,13 @@ const textHandlers = {
     if (!keyword) return message.reply({ embeds: [new EmbedBuilder().setColor(client.config.colorError).setDescription("Provide a song name or URL!")] });
     const voiceChannel = message.member.voice.channel;
     if (!voiceChannel) return message.reply({ embeds: [new EmbedBuilder().setColor(client.config.colorError).setDescription("You must be in a voice channel!")] });
+    const msg = await message.reply({ embeds: [new EmbedBuilder().setColor(client.config.colorDefault).setDescription("Finding song...")] });
     try {
       const song = await client.player.play(message.channel, voiceChannel, keyword, message.member);
       const embed = new EmbedBuilder().setColor(client.config.colorDefault).setDescription(`Added [${song.title}](${song.url}) to the queue`);
-      message.reply({ embeds: [embed] });
+      msg.edit({ embeds: [embed] });
     } catch (err) {
-      message.reply({ embeds: [new EmbedBuilder().setColor(client.config.colorError).setDescription(`Error: ${err.message}`)] });
+      msg.edit({ embeds: [new EmbedBuilder().setColor(client.config.colorError).setDescription(`Error: ${err.message}`)] });
     }
   },
   async skip(client, message) {
