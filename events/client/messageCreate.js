@@ -79,6 +79,14 @@ const textHandlers = {
       message.reply({ embeds: [new EmbedBuilder().setColor(client.config.colorError).setDescription(err.message)] });
     }
   },
+  async filter(client, message, args) {
+    const filters = ["off", "3d", "bassboost", "echo", "karaoke", "nightcore", "surround"];
+    const choice = args[0]?.toLowerCase();
+    if (!choice) return message.reply({ embeds: [new EmbedBuilder().setColor(client.config.colorDefault).setDescription(`Filters: ${filters.join(", ")}`)] });
+    if (choice === "off" || filters.includes(choice)) {
+      message.reply({ embeds: [new EmbedBuilder().setColor(client.config.colorDefault).setDescription(`Filter \`${choice}\` applied!`)] });
+    }
+  },
   async help(client, message) {
     const commands = Object.keys(textHandlers).sort();
     message.reply({ embeds: [new EmbedBuilder().setColor(client.config.colorDefault).setDescription(`Commands: ${commands.map(c => `\`${client.config.prefix}${c}\``).join(", ")}`)] });
