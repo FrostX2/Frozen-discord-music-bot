@@ -1,6 +1,6 @@
 const { createAudioPlayer, createAudioResource, entersState, VoiceConnectionStatus, joinVoiceChannel, AudioPlayerStatus, demuxProbe } = require('@discordjs/voice');
 const play = require('play-dl');
-const { spawn, execSync } = require('child_process');
+const { spawn, exec, execSync } = require('child_process');
 const { existsSync, chmodSync } = require('fs');
 const { join } = require('path');
 
@@ -35,10 +35,17 @@ async function ensureYtDlp() {
   const arch = execSync('uname -m', { encoding: 'utf8' }).trim();
   const bin = arch === 'aarch64' ? 'yt-dlp_linux_aarch64' : 'yt-dlp_linux';
   const url = `https://github.com/yt-dlp/yt-dlp/releases/latest/download/${bin}`;
-  console.log(`Downloading yt-dlp (${bin})...`);
-  execSync(`curl -fsL "${url}" -o "${YTDLP_PATH}"`, { stdio: 'inherit' });
-  chmodSync(YTDLP_PATH, 0o755);
-  console.log('yt-dlp downloaded');
+  return new Promise((resolve, reject) => {
+    console.log(`Downloading yt-dlp (${bin})...`);
+    const curl = spawn('curl', ['-fsL', url, '-o', YTDLP_PATH], { stdio: 'inherit' });
+    curl.on('close', code => {
+      if (code !== 0) return reject(new Error(`curl exited ${code}`));
+      chmodSync(YTDLP_PATH, 0o755);
+      console.log('yt-dlp downloaded');
+      resolve();
+    });
+    curl.on('error', reject);
+  });
 }
 
 function getQueue(guildId) {
@@ -117,6 +124,7 @@ async function playSong(guildId) {
 }
 
 module.exports = {
+  ensureYtDlp,
   async play(textChannel, voiceChannel, query, member) {
     const guildId = voiceChannel.guildId;
     const queue = getQueue(guildId);

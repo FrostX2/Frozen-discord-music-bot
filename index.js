@@ -65,6 +65,10 @@ for (const folder of functionFolders) {
 
 require ("./distube/index");
 
+// Pre-download yt-dlp so first play is instant
+const player = require("./player");
+player.ensureYtDlp().catch(() => {});
+
 client.handleEvents();
 client.handleComponents();
 client.handleCommands();
