@@ -121,9 +121,12 @@ module.exports = {
     if (!voiceChannel) return;
 
     try {
-      await message.client.player.play(message.channel, voiceChannel, urlMatch[0], message.member);
+      const song = await message.client.player.play(message.channel, voiceChannel, urlMatch[0], message.member);
+      const embed = new EmbedBuilder().setColor(message.client.config.colorDefault).setDescription(`Added [${song.title}](${song.url}) to the queue`);
+      message.reply({ embeds: [embed] });
     } catch (err) {
       console.error("Auto-play error:", err);
+      message.reply({ embeds: [new EmbedBuilder().setColor(message.client.config.colorError).setDescription(`Error: ${err.message}`)] }).catch(() => {});
     }
   },
 };
