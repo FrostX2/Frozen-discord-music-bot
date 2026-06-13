@@ -70,6 +70,7 @@ client.musicSetup = {};
 // Pre-download yt-dlp so first play is instant
 const player = require("./player");
 player.ensureYtDlp().catch(() => {});
+player.ensureFfmpeg().catch(() => {});
 
 
 

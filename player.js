@@ -8,8 +8,10 @@ const { PassThrough } = require('stream');
 
 const queues = new Map();
 const YTDLP_PATH = join(__dirname, 'yt-dlp');
+const FFMPEG_PATH = join(__dirname, 'ffmpeg');
 
 let ytDlpPromise = null;
+let ffmpegPromise = null;
 
 function formatDuration(seconds) {
   if (!seconds) return "0:00";
@@ -56,6 +58,21 @@ async function ensureYtDlp() {
     throw new Error(`Failed to download yt-dlp: ${err.message}`);
   });
   return ytDlpPromise;
+}
+
+async function ensureFfmpeg() {
+  if (existsSync(FFMPEG_PATH)) return;
+  if (ffmpegPromise) return ffmpegPromise;
+  const arch = process.arch === 'arm64' ? 'arm64' : 'x64';
+  const url = `https://github.com/eugeneware/ffmpeg-static/releases/download/b6.1.1/ffmpeg-linux-${arch}`;
+  ffmpegPromise = downloadFile(url, FFMPEG_PATH).then(() => {
+    chmodSync(FFMPEG_PATH, 0o755);
+    console.log('ffmpeg downloaded');
+  }).catch(err => {
+    ffmpegPromise = null;
+    throw new Error(`Failed to download ffmpeg: ${err.message}`);
+  });
+  return ffmpegPromise;
 }
 
 function downloadFile(url, dest) {
@@ -128,29 +145,50 @@ async function playSong(guildId) {
         + 'place cookies.txt in the bot directory.');
     }
 
+    await ensureFfmpeg();
+
     const ytArgs = [
       '--cookies', cookiePath,
       '--no-warnings', '--no-playlist',
       '--js-runtime', 'node',
-      '-f', 'ba[ext=webm]/ba/b',
+      '--extractor-args', 'youtube:player_client=android',
+      '-f', 'b',
       '-o', '-',
     ];
-    const proc = spawn(YTDLP_PATH, ytArgs.concat(song.url), { stdio: ['ignore', 'pipe', 'pipe'] });
+    const ffArgs = [
+      '-loglevel', 'error',
+      '-i', 'pipe:0',
+      '-f', 'opus',
+      '-ar', '48000',
+      '-ac', '2',
+      '-b:a', '128k',
+      'pipe:1',
+    ];
 
-    let stderrBuf = '';
-    proc.stderr.on('data', (d) => { stderrBuf += d; });
+    const ytProc = spawn(YTDLP_PATH, ytArgs.concat(song.url), { stdio: ['ignore', 'pipe', 'pipe'] });
+
+    const ffProc = spawn(FFMPEG_PATH, ffArgs, { stdio: ['pipe', 'pipe', 'pipe'] });
+
+    ytProc.stdout.pipe(ffProc.stdin);
+
+    let ytStderr = '';
+    ytProc.stderr.on('data', (d) => { ytStderr += d; });
 
     const pass = new PassThrough();
-    proc.stdout.pipe(pass);
+    ffProc.stdout.pipe(pass);
 
     const firstChunk = await Promise.race([
       new Promise((resolve, reject) => {
         pass.once('data', resolve);
-        proc.on('close', (code) => {
-          if (code !== 0) reject(new Error(`yt-dlp exited ${code}: ${stderrBuf.split('\n').slice(-3).join('\\n')}`));
-          else reject(new Error('yt-dlp produced no audio output'));
+        ytProc.on('close', (code) => {
+          if (code !== 0 && ffProc.killed) reject(new Error(`yt-dlp exited ${code}: ${ytStderr.split('\n').slice(-3).join('\\n')}`));
+          else if (code !== 0) reject(new Error(`yt-dlp exited ${code}: ${ytStderr.split('\n').slice(-3).join('\\n')}`));
         });
-        proc.on('error', reject);
+        ffProc.on('close', (code) => {
+          if (code !== 0 && pass.readableLength === 0) reject(new Error(`ffmpeg exited ${code}`));
+        });
+        ytProc.on('error', reject);
+        ffProc.on('error', reject);
       }),
       new Promise((_, reject) => setTimeout(() => reject(new Error('yt-dlp timed out (30s)')), 30000)),
     ]);
@@ -166,7 +204,8 @@ async function playSong(guildId) {
     }
 
     const cleanup = () => {
-      proc.kill();
+      ytProc.kill();
+      ffProc.kill();
       queue.player.removeAllListeners(AudioPlayerStatus.Idle);
     };
 
@@ -181,8 +220,13 @@ async function playSong(guildId) {
       playSong(guildId);
     });
 
-    proc.on('close', (code) => {
+    ytProc.on('close', (code) => {
       if (code !== 0 && queue.player.state.status !== AudioPlayerStatus.Idle) {
+        queue.player.stop();
+      }
+    });
+    ffProc.on('close', () => {
+      if (queue.player.state.status !== AudioPlayerStatus.Idle) {
         queue.player.stop();
       }
     });
@@ -195,6 +239,7 @@ async function playSong(guildId) {
 
 module.exports = {
   ensureYtDlp,
+  ensureFfmpeg,
   async play(textChannel, voiceChannel, query, member) {
     const guildId = voiceChannel.guildId;
     const queue = getQueue(guildId);
