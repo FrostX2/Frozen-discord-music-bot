@@ -1,79 +1,44 @@
-const { EmbedBuilder } = require("discord.js");
-const { SlashCommandBuilder } = require("@discordjs/builders");
-const axios = require("axios");
+const { EmbedBuilder, SlashCommandBuilder } = require("discord.js");
 
 module.exports = {
-    category: "Music",
-    data: new SlashCommandBuilder()
-        .setName("play")
-        .setDescription("Play a song")
-        .addStringOption((option) =>
-            option
-                .setName("keyword or URL")
-                .setDescription("The keyword or URL of the song to play")
-                .setRequired(true)
-                .setAutocomplete(true)
-        ),
+  category: "Music",
+  data: new SlashCommandBuilder()
+    .setName("play")
+    .setDescription("Play a song")
+    .addStringOption((option) =>
+      option
+        .setName("keyword")
+        .setDescription("Song name or URL")
+        .setRequired(true)
+    ),
+  async execute(interaction, client) {
+    const isMsg = interaction.isMessage === true;
+    const keyword = isMsg ? interaction.options.getString("keyword") : interaction.options.getString("keyword");
+    const voiceChannel = interaction.member.voice.channel;
 
-    async execute(interaction, client) {
-        const keyword = interaction.options.getString(
-            "keyword or URL"
-        );
+    if (!voiceChannel) {
+      const err = { embeds: [new EmbedBuilder().setColor(client.config.colorError).setDescription("You must be in a voice channel!")] };
+      return isMsg ? interaction.reply(err) : interaction.reply({ ...err, ephemeral: true });
+    }
 
-        const voiceChannel = interaction.member.voice.channel;
-        const queue = await client.distube.getQueue(interaction);
+    if (!isMsg) {
+      await interaction.reply({ embeds: [new EmbedBuilder().setColor(client.config.colorDefault).setDescription("Looking for song...")], ephemeral: true });
+    }
 
-        if (!voiceChannel) {
-            return interaction.reply({
-                embeds: [
-                    new EmbedBuilder()
-                        .setColor(client.config.colorError)
-                        .setDescription(
-                            `🚫 | You must be in a voice channel to use this command!`
-                        ),
-                ],
-                ephemeral: true,
-            });
-        }
-
-        if (queue) {
-            if (
-                interaction.guild.members.me.voice.channelId !==
-                interaction.member.voice.channelId
-            ) {
-                return interaction.reply({
-                    embeds: [
-                        new EmbedBuilder()
-                            .setColor(client.config.colorError)
-                            .setDescription(
-                                `🚫 | You need to be on the same voice channel as the Bot!`
-                            ),
-                    ],
-                    ephemeral: true,
-                });
-            }
-        }
-
-        await interaction.reply({
-            embeds: [
-                new EmbedBuilder()
-                    .setColor(client.config.colorDefault)
-                    .setDescription(`🔍 | Looking for a song...`),
-            ],
-            ephemeral: true,
-        });
-
-        client.distube.play(voiceChannel, keyword, {
-            textChannel: interaction.channel,
-            member: interaction.member,
-        });
-        await interaction.editReply({
-            embeds: [
-                new EmbedBuilder()
-                    .setColor(client.config.colorDefault)
-                    .setDescription(`🔍 | Successful search!`),
-            ],
-            ephemeral: true,
-        });
-    },
+    try {
+      const song = await client.player.play(interaction.channel, voiceChannel, keyword, interaction.member);
+      const embed = new EmbedBuilder()
+        .setColor(client.config.colorDefault)
+        .setDescription(`Added [${song.title}](${song.url}) to the queue`);
+      if (isMsg) {
+        interaction.reply({ embeds: [embed] });
+      } else {
+        interaction.editReply({ embeds: [embed] });
+      }
+    } catch (err) {
+      const errEmbed = { embeds: [new EmbedBuilder().setColor(client.config.colorError).setDescription(`Error: ${err.message}`)] };
+      if (isMsg) interaction.reply(errEmbed);
+      else interaction.editReply(errEmbed);
+    }
+  },
 };
