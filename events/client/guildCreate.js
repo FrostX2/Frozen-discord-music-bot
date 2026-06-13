@@ -1,20 +1,4 @@
 const { EmbedBuilder, ChannelType, PermissionsBitField } = require("discord.js");
-const { join } = require("path");
-const { existsSync, readFileSync, writeFileSync } = require("fs");
-
-const SETUP_PATH = join(__dirname, "../../music-setup.json");
-
-function loadSetup() {
-  try {
-    return JSON.parse(readFileSync(SETUP_PATH, "utf8"));
-  } catch {
-    return {};
-  }
-}
-
-function saveSetup(setup) {
-  writeFileSync(SETUP_PATH, JSON.stringify(setup, null, 2));
-}
 
 module.exports = {
   name: "guildCreate",
@@ -40,11 +24,8 @@ module.exports = {
 
       await channel.send({ embeds: [embed] });
 
-      // Auto-setup this channel as the music channel
-      const setup = loadSetup();
-      setup[guild.id] = channel.id;
-      saveSetup(setup);
-      client.musicSetup = setup;
+      if (!client.musicSetup) client.musicSetup = {};
+      client.musicSetup[guild.id] = channel.id;
 
       console.log(`Created FuriMusic channel in ${guild.name} (${guild.id})`);
     } catch (err) {
