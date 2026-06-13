@@ -1,8 +1,16 @@
 const { createAudioPlayer, createAudioResource, entersState, VoiceConnectionStatus, joinVoiceChannel, AudioPlayerStatus } = require('@discordjs/voice');
 const { spawn, execSync } = require('child_process');
-const { unlink, mkdir } = require('fs/promises');
+const { unlink, mkdir, access } = require('fs/promises');
 const { join } = require('path');
 const { randomBytes } = require('crypto');
+
+// Resolve yt-dlp path
+const YTDLP = process.env.YT_DLP || (() => {
+  try {
+    const p = execSync('which yt-dlp 2>/dev/null || command -v yt-dlp 2>/dev/null').toString().trim();
+    return p || 'yt-dlp';
+  } catch { return 'yt-dlp'; }
+})();
 const { existsSync } = require('fs');
 
 const TEMP_DIR = '/tmp/furimusic';
@@ -71,7 +79,7 @@ async function search(query) {
     } catch { }
   }
 
-  const stdout = await execAsync('yt-dlp', [
+  const stdout = await execAsync(YTDLP, [
     '--cookies', COOKIES_PATH,
     '--geo-bypass',
     '--no-warnings',
@@ -87,7 +95,7 @@ async function search(query) {
 }
 
 async function resolveInfo(url) {
-  const stdout = await execAsync('yt-dlp', [
+  const stdout = await execAsync(YTDLP, [
     '--cookies', COOKIES_PATH,
     '--geo-bypass',
     '--no-warnings',
@@ -102,7 +110,7 @@ async function downloadSong(song) {
   await mkdir(TEMP_DIR, { recursive: true });
   const fileId = randomBytes(8).toString('hex');
   const outputPath = join(TEMP_DIR, `${fileId}.%(ext)s`);
-  await execAsync('yt-dlp', [
+  await execAsync(YTDLP, [
     '--cookies', COOKIES_PATH,
     '--geo-bypass',
     '--no-warnings',
