@@ -131,6 +131,7 @@ async function playSong(guildId) {
     const ytArgs = [
       '--cookies', cookiePath,
       '--no-warnings', '--no-playlist',
+      '--js-runtime', 'node',
       '-f', 'ba[ext=webm]/ba/b',
       '-o', '-',
     ];
