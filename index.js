@@ -69,6 +69,10 @@ require ("./distube/index");
 const player = require("./player");
 player.ensureYtDlp().catch(() => {});
 
+// Load music channel setup
+const { existsSync, readFileSync } = require("fs");
+try { client.musicSetup = JSON.parse(readFileSync("music-setup.json", "utf8")); } catch { client.musicSetup = {}; }
+
 client.handleEvents();
 client.handleComponents();
 client.handleCommands();

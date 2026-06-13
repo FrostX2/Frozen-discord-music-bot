@@ -92,19 +92,38 @@ module.exports = {
     if (message.channel.type === "dm") return;
 
     const prefix = message.client.config.prefix;
-    if (!message.content.startsWith(prefix)) return;
 
-    const args = message.content.slice(prefix.length).trim().split(/ +/);
-    const cmd = args.shift().toLowerCase();
+    // Prefix commands
+    if (message.content.startsWith(prefix)) {
+      const args = message.content.slice(prefix.length).trim().split(/ +/);
+      const cmd = args.shift().toLowerCase();
 
-    const handler = textHandlers[cmd];
-    if (!handler) return;
+      const handler = textHandlers[cmd];
+      if (!handler) return;
+
+      try {
+        await handler(message.client, message, args);
+      } catch (err) {
+        console.error("Text command error:", err);
+        message.reply({ embeds: [new EmbedBuilder().setColor(message.client.config.colorError).setDescription(`Error: ${err.message}`)] });
+      }
+      return;
+    }
+
+    // Auto-detect YouTube links in designated music channel
+    const setup = message.client.musicSetup || {};
+    if (setup[message.guildId] !== message.channel.id) return;
+
+    const urlMatch = message.content.match(/(https?:\/\/)?(www\.)?(youtube\.com|youtu\.be)\/\S+/i);
+    if (!urlMatch) return;
+
+    const voiceChannel = message.member?.voice?.channel;
+    if (!voiceChannel) return;
 
     try {
-      await handler(message.client, message, args);
+      await message.client.player.play(message.channel, voiceChannel, urlMatch[0], message.member);
     } catch (err) {
-      console.error("Text command error:", err);
-      message.reply({ embeds: [new EmbedBuilder().setColor(message.client.config.colorError).setDescription(`Error: ${err.message}`)] });
+      console.error("Auto-play error:", err);
     }
   },
 };
