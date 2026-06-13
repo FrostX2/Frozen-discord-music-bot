@@ -5,7 +5,6 @@ const https = require('https');
 const { existsSync, chmodSync } = require('fs');
 const { join } = require('path');
 const { PassThrough } = require('stream');
-const ffmpegPath = require('ffmpeg-static');
 
 const queues = new Map();
 const YTDLP_PATH = join(__dirname, 'yt-dlp');
@@ -101,6 +100,14 @@ function getQueue(guildId) {
   return queues.get(guildId);
 }
 
+function findCookies() {
+  const paths = [
+    join(__dirname, 'cookies.txt'),
+    '/etc/secrets/cookies.txt',
+  ];
+  return paths.find(existsSync) || null;
+}
+
 async function playSong(guildId) {
   const queue = getQueue(guildId);
   if (!queue.songs.length || !queue.connection) {
@@ -112,33 +119,28 @@ async function playSong(guildId) {
   queue.startTime = Date.now();
   try {
     await ensureYtDlp();
-    const hasCookies = existsSync(join(__dirname, 'cookies.txt'));
-    const ytArgs = hasCookies
-      ? ['--cookies', join(__dirname, 'cookies.txt'),
-         '--no-warnings', '--no-playlist', '-f', 'ba[ext=webm]/ba/b', '-o', '-']
-      : ['--no-warnings', '--no-playlist',
-         '--extractor-args', 'youtube:player_client=android',
-         '-f', 'ba[ext=webm]/ba/b', '-o', '-'];
+    const cookiePath = findCookies();
+
+    if (!cookiePath) {
+      throw new Error('No cookies.txt found. YouTube blocks Render IPs. '
+        + 'Export cookies from Chrome with "cookies.txt" extension and '
+        + 'upload as a Render Secret File (/etc/secrets/cookies.txt) or '
+        + 'place cookies.txt in the bot directory.');
+    }
+
+    const ytArgs = [
+      '--cookies', cookiePath,
+      '--no-warnings', '--no-playlist',
+      '-f', 'ba[ext=webm]/ba/b',
+      '-o', '-',
+    ];
     const proc = spawn(YTDLP_PATH, ytArgs.concat(song.url), { stdio: ['ignore', 'pipe', 'pipe'] });
 
     let stderrBuf = '';
     proc.stderr.on('data', (d) => { stderrBuf += d; });
 
-    let audioStream = proc.stdout;
-
-    if (!hasCookies) {
-      const ffmpeg = spawn(ffmpegPath, [
-        '-i', 'pipe:0', '-f', 'opus', '-ac', '2', '-ar', '48000',
-        '-page_duration', '0', 'pipe:1'
-      ], { stdio: ['pipe', 'pipe', 'pipe'] });
-      proc.stdout.pipe(ffmpeg.stdin);
-      ffmpeg.stderr.on('data', () => {});
-      audioStream = ffmpeg.stdout;
-      proc.on('close', () => { ffmpeg.kill(); });
-    }
-
     const pass = new PassThrough();
-    audioStream.pipe(pass);
+    proc.stdout.pipe(pass);
 
     const firstChunk = await Promise.race([
       new Promise((resolve, reject) => {
