@@ -5,7 +5,9 @@ const {
     Partials,
 } = require("discord.js");
 const fs = require("fs");
-const { token } = require("./config.json");
+let config;
+try { config = require("./config.json"); } catch { config = {}; }
+const token = process.env.DISCORD_TOKEN || config.token;
 
 const client = new Client({
     intents: [
@@ -43,7 +45,13 @@ client.category = new Collection();
 client.buttons = new Collection();
 client.selectMenus = new Collection();
 client.commandArray = [];
-client.config = require("./config.json");
+client.config = {
+    ...config,
+    token: process.env.DISCORD_TOKEN || config.token,
+    clientId: process.env.CLIENT_ID || config.clientId,
+    guildId: process.env.GUILD_ID || config.guildId || "",
+    prefix: process.env.PREFIX || config.prefix || "!",
+};
 
 const functionFolders = fs.readdirSync("./functions");
 for (const folder of functionFolders) {
