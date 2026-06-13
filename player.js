@@ -147,53 +147,66 @@ async function playSong(guildId) {
 
     await ensureFfmpeg();
 
-    const ytArgs = [
-      '--cookies', cookiePath,
-      '--no-warnings', '--no-playlist',
-      '--js-runtime', 'node',
-      '--extractor-args', 'youtube:player_client=android',
-      '-f', 'b',
-      '-o', '-',
-    ];
-    const ffArgs = [
-      '-loglevel', 'error',
-      '-i', 'pipe:0',
-      '-f', 'opus',
-      '-ar', '48000',
-      '-ac', '2',
-      '-b:a', '128k',
-      'pipe:1',
-    ];
+    const runYtStream = async (extractorArgs) => {
+      const ytArgs = [
+        '--cookies', cookiePath,
+        '--no-warnings', '--no-playlist',
+        '--js-runtime', 'node',
+      ];
+      if (extractorArgs) ytArgs.push('--extractor-args', extractorArgs);
+      ytArgs.push('-f', 'ba[ext=webm]/ba/b', '-o', '-');
 
-    const ytProc = spawn(YTDLP_PATH, ytArgs.concat(song.url), { stdio: ['ignore', 'pipe', 'pipe'] });
+      const ffArgs = [
+        '-loglevel', 'error',
+        '-i', 'pipe:0',
+        '-f', 'opus',
+        '-ar', '48000',
+        '-ac', '2',
+        '-b:a', '128k',
+        'pipe:1',
+      ];
 
-    const ffProc = spawn(FFMPEG_PATH, ffArgs, { stdio: ['pipe', 'pipe', 'pipe'] });
+      const ytProc = spawn(YTDLP_PATH, ytArgs.concat(song.url), { stdio: ['ignore', 'pipe', 'pipe'] });
+      const ffProc = spawn(FFMPEG_PATH, ffArgs, { stdio: ['pipe', 'pipe', 'pipe'] });
+      ytProc.stdout.pipe(ffProc.stdin);
 
-    ytProc.stdout.pipe(ffProc.stdin);
+      let ytStderr = '';
+      ytProc.stderr.on('data', (d) => { ytStderr += d; });
 
-    let ytStderr = '';
-    ytProc.stderr.on('data', (d) => { ytStderr += d; });
+      const pass = new PassThrough();
+      ffProc.stdout.pipe(pass);
 
-    const pass = new PassThrough();
-    ffProc.stdout.pipe(pass);
+      const firstChunk = await Promise.race([
+        new Promise((resolve, reject) => {
+          pass.once('data', resolve);
+          ytProc.on('close', (code) => {
+            if (code !== 0) reject(Object.assign(new Error(`yt-dlp exited ${code}: ${ytStderr.split('\n').slice(-3).join('\\n')}`), { ytStderr }));
+          });
+          ffProc.on('close', (code) => {
+            if (code !== 0 && pass.readableLength === 0) reject(new Error(`ffmpeg exited ${code}`));
+          });
+          ytProc.on('error', reject);
+          ffProc.on('error', reject);
+        }),
+        new Promise((_, reject) => setTimeout(() => reject(new Error('yt-dlp timed out (30s)')), 30000)),
+      ]);
 
-    const firstChunk = await Promise.race([
-      new Promise((resolve, reject) => {
-        pass.once('data', resolve);
-        ytProc.on('close', (code) => {
-          if (code !== 0 && ffProc.killed) reject(new Error(`yt-dlp exited ${code}: ${ytStderr.split('\n').slice(-3).join('\\n')}`));
-          else if (code !== 0) reject(new Error(`yt-dlp exited ${code}: ${ytStderr.split('\n').slice(-3).join('\\n')}`));
-        });
-        ffProc.on('close', (code) => {
-          if (code !== 0 && pass.readableLength === 0) reject(new Error(`ffmpeg exited ${code}`));
-        });
-        ytProc.on('error', reject);
-        ffProc.on('error', reject);
-      }),
-      new Promise((_, reject) => setTimeout(() => reject(new Error('yt-dlp timed out (30s)')), 30000)),
-    ]);
+      pass.unshift(firstChunk);
+      return { pass, ytProc, ffProc };
+    };
 
-    pass.unshift(firstChunk);
+    let result;
+    try {
+      result = await runYtStream('youtube:player_client=android');
+    } catch (err) {
+      if (err.ytStderr && err.ytStderr.includes('Requested format is not available')) {
+        result = await runYtStream(null);
+      } else {
+        throw err;
+      }
+    }
+
+    const { pass, ytProc, ffProc } = result;
     const probe = await demuxProbe(pass);
     const resource = createAudioResource(probe.stream, { inputType: probe.type, inlineVolume: true });
     resource.volume.setVolumeLogarithmic(queue.volume / 100);
