@@ -16,10 +16,16 @@ function buildQueueProxy(guildId, queue) {
   return {
     songs: queue.songs,
     volume: queue.volume,
-    filters: { names: [] },
+    filters: {
+      names: [],
+      has: () => false,
+      add: () => {},
+      remove: () => {},
+      clear: () => {},
+    },
     repeatMode: queue.loop ? 2 : 0,
     autoplay: false,
-    formattedDuration: formatDuration(queue.songs.reduce((a, s) => a + (s.duration || 0), 0)),
+    formattedDuration: formatDuration(queue.songs.reduce((a, s) => a + (s.durationInSec || 0), 0)),
     formattedCurrentTime: formatDuration(Math.floor((Date.now() - queue.startTime) / 1000)),
     textChannel: queue.textChannel,
     voiceChannel: { id: queue.connection?.joinConfig?.channelId },
@@ -36,7 +42,7 @@ function buildQueueProxy(guildId, queue) {
 client.distube = {
   getQueue: (interaction) => {
     const queue = player.getQueue(interaction.guildId);
-    if (!queue.songs.length) return null;
+    if (!queue || !queue.songs.length) return null;
     return buildQueueProxy(interaction.guildId, queue);
   },
   play: (voiceChannel, keyword, opts) => {
@@ -44,6 +50,9 @@ client.distube = {
   },
   previous: (interaction) => {
     player.previous(interaction.guildId);
+  },
+  jump: (interaction, id) => {
+    player.jump(interaction.guildId, id);
   },
   voices: {
     leave: (interaction) => {

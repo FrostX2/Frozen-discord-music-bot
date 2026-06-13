@@ -5,8 +5,30 @@ const { existsSync, writeFileSync, chmodSync } = require('fs');
 const { join } = require('path');
 
 const queues = new Map();
-
 const YTDLP_PATH = join(__dirname, 'yt-dlp');
+
+function formatDuration(seconds) {
+  if (!seconds) return "0:00";
+  const h = Math.floor(seconds / 3600);
+  const m = Math.floor((seconds % 3600) / 60);
+  const s = seconds % 60;
+  if (h > 0) return `${h}:${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`;
+  return `${m}:${String(s).padStart(2, "0")}`;
+}
+
+function buildSong(info, member) {
+  return {
+    url: info.url,
+    title: info.title,
+    name: info.title,
+    durationInSec: info.durationInSec || 0,
+    formattedDuration: formatDuration(info.durationInSec || 0),
+    thumbnail: info.thumbnails?.[0]?.url || null,
+    views: info.views || 0,
+    uploader: info.channel ? { name: info.channel.name, url: info.channel.url } : { name: "Unknown", url: "" },
+    user: member?.user?.tag || member?.tag || "Unknown",
+  };
+}
 
 async function ensureYtDlp() {
   if (existsSync(YTDLP_PATH)) return;
@@ -28,6 +50,7 @@ function getQueue(guildId) {
       player: createAudioPlayer(),
       connection: null,
       textChannel: null,
+      startTime: 0,
     });
   }
   return queues.get(guildId);
@@ -41,6 +64,7 @@ async function playSong(guildId) {
   }
   const song = queue.songs[0];
   queue.current = song;
+  queue.startTime = Date.now();
   try {
     await ensureYtDlp();
     const ytArgs = [
@@ -98,16 +122,16 @@ module.exports = {
     queue.textChannel = textChannel;
 
     const isUrl = query.match(/https?:\/\/\S+/i);
-    let song;
+    let info;
     if (isUrl) {
-      const info = await play.video_info(query);
-      song = { url: info.video_details.url, title: info.video_details.title };
+      info = (await play.video_info(query)).video_details;
     } else {
       const results = await play.search(query, { limit: 1 });
       if (!results.length) throw new Error(`No results for "${query}"`);
-      song = { url: results[0].url, title: results[0].title };
+      info = results[0];
     }
 
+    const song = buildSong(info, member);
     queue.songs.push(song);
 
     if (!queue.connection) {
@@ -171,6 +195,14 @@ module.exports = {
     const queue = getQueue(guildId);
     if (id > 0 && id <= queue.songs.length) {
       return queue.songs.splice(id - 1, 1)[0];
+    }
+  },
+
+  jump(guildId, id) {
+    const queue = getQueue(guildId);
+    if (id >= 0 && id < queue.songs.length) {
+      queue.songs.splice(0, id);
+      queue.player.stop();
     }
   },
 };

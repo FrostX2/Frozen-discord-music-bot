@@ -2,15 +2,13 @@ const { EmbedBuilder } = require("discord.js");
 const { SlashCommandBuilder } = require("@discordjs/builders");
 const Format = Intl.NumberFormat();
 const status = (queue) =>
-    `Volume: \`${queue.volume}%\` | Filter: \`${
-        queue.filters.names.join(", ") || "Off"
-    }\` | Repeat: \`${
+    `Volume: \`${queue.volume}%\` | Repeat: \`${
         queue.repeatMode
             ? queue.repeatMode === 2
                 ? "List"
                 : "Song"
             : "Off"
-    }\` | Autoplay: \`${queue.autoplay ? "On" : "Off"}\``;
+    }\``;
 
 module.exports = {
     category: "Music",
@@ -27,7 +25,7 @@ module.exports = {
                     new EmbedBuilder()
                         .setColor(client.config.colorError)
                         .setDescription(
-                            `🚫 | You must be in a voice channel to use this command!`
+                            `You must be in a voice channel to use this command!`
                         ),
                 ],
             });
@@ -41,7 +39,7 @@ module.exports = {
                     new EmbedBuilder()
                         .setColor(client.config.colorError)
                         .setDescription(
-                            `🚫 | You need to be on the same voice channel as the Bot!`
+                            `You need to be on the same voice channel as the Bot!`
                         ),
                 ],
             });
@@ -57,52 +55,31 @@ module.exports = {
             .setDescription(`> [${song.name}](${song.url})`)
             .addFields([
                 {
-                    name: "🔷 | Status",
+                    name: "Status",
                     value: `${status(queue).toString()}`,
                     inline: false,
                 },
                 {
-                    name: "👀 | Views",
+                    name: "Views",
                     value: `${Format.format(song.views)}`,
                     inline: true,
                 },
                 {
-                    name: "👍 | Likes",
-                    value: `${Format.format(song.likes)}`,
-                    inline: true,
-                },
-                {
-                    name: "⏱️ | Duration",
+                    name: "Duration",
                     value: `${queue.formattedCurrentTime} / ${song.formattedDuration}`,
                     inline: true,
                 },
                 {
-                    name: "🎵 | Upload",
-                    value: `[${song.uploader.name}](${song.uploader.url})`,
+                    name: "Upload",
+                    value: song.uploader?.url
+                        ? `[${song.uploader.name}](${song.uploader.url})`
+                        : song.uploader?.name || "Unknown",
                     inline: true,
                 },
                 {
-                    name: "💾 | Dowload",
-                    value: `[Click vào đây](${song.streamURL})`,
-                    inline: true,
-                },
-                {
-                    name: "👌 | Request by",
+                    name: "Request by",
                     value: `${song.user}`,
                     inline: true,
-                },
-                {
-                    name: "📻 | Play music at",
-                    value: `
-┕🔊 | ${client.channels.cache.get(queue.voiceChannel.id)}
-┕🪄 | ${queue.voiceChannel.bitrate / 1000}  kbps`,
-                    inline: false,
-                },
-                {
-                    name: "🤖 | Suggestions",
-                    value: `[${song.related[0].name}](${song.related[0].url})
-┕⌛ | Time: ${song.related[0].formattedDuration} | 🆙 | Upload: [${song.related[0].uploader.name}](${song.related[0].uploader.url})`,
-                    inline: false,
                 },
             ])
             .setImage(song.thumbnail)
