@@ -4,12 +4,23 @@ const { unlink, mkdir, access } = require('fs/promises');
 const { join } = require('path');
 const { randomBytes } = require('crypto');
 
+// Extend PATH for user-installed binaries (Render)
+process.env.PATH = `${process.env.HOME}/.local/bin:${process.env.HOME}/ffmpeg:${process.env.PATH}`;
+
 // Resolve yt-dlp path
 const YTDLP = process.env.YT_DLP || (() => {
   try {
     const p = execSync('which yt-dlp 2>/dev/null || command -v yt-dlp 2>/dev/null').toString().trim();
     return p || 'yt-dlp';
   } catch { return 'yt-dlp'; }
+})();
+
+// Resolve ffmpeg path
+const FFMPEG = process.env.FFMPEG_PATH || (() => {
+  try {
+    const p = execSync('which ffmpeg 2>/dev/null || command -v ffmpeg 2>/dev/null').toString().trim();
+    return p || 'ffmpeg';
+  } catch { return 'ffmpeg'; }
 })();
 const { existsSync } = require('fs');
 
@@ -138,7 +149,7 @@ async function playSong(guildId) {
     const filePath = await downloadSong(song);
     song.filePath = filePath;
 
-    const ffmpeg = spawn('ffmpeg', [
+    const ffmpeg = spawn(FFMPEG, [
       '-i', filePath, '-f', 'opus', '-ar', '48000', '-ac', '2',
       '-b:a', '128k', '-loglevel', 'error', 'pipe:1',
     ], { stdio: ['pipe', 'pipe', 'pipe'] });
