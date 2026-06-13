@@ -110,18 +110,18 @@ module.exports = {
       return;
     }
 
-    // Auto-detect YouTube links in designated music channel
+    // Auto-detect in designated music channel — URLs and search terms
     const setup = message.client.musicSetup || {};
     if (setup[message.guildId] !== message.channel.id) return;
-
-    const urlMatch = message.content.match(/(https?:\/\/)?(www\.)?(youtube\.com|youtu\.be)\/\S+/i);
-    if (!urlMatch) return;
 
     const voiceChannel = message.member?.voice?.channel;
     if (!voiceChannel) return;
 
+    const urlMatch = message.content.match(/(https?:\/\/)?(www\.)?(youtube\.com|youtu\.be)\/\S+/i);
+    const query = urlMatch ? urlMatch[0] : message.content.trim();
+
     try {
-      const song = await message.client.player.play(message.channel, voiceChannel, urlMatch[0], message.member);
+      const song = await message.client.player.play(message.channel, voiceChannel, query, message.member);
       const embed = new EmbedBuilder().setColor(message.client.config.colorDefault).setDescription(`Added [${song.title}](${song.url}) to the queue`);
       message.reply({ embeds: [embed] });
     } catch (err) {

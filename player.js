@@ -161,6 +161,9 @@ async function playSong(guildId) {
     resource.volume.setVolumeLogarithmic(queue.volume / 100);
     queue.player.play(resource);
     queue.connection.subscribe(queue.player);
+    if (queue.textChannel) {
+      queue.textChannel.send({ content: `🎵 Now playing: ${song.title} — ${song.url || song.url}` }).catch(() => {});
+    }
 
     const cleanup = () => {
       proc.kill();
