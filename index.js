@@ -69,6 +69,11 @@ client.handleEvents();
 client.handleComponents();
 client.handleCommands();
 
+// Render port binding
+const http = require("http");
+const port = process.env.PORT || 3000;
+http.createServer((req, res) => res.end("ok")).listen(port, () => console.log(`Server listening on port ${port}`));
+
 //anticrash
 process.on("unhandledRejection", (reason, p) => {
     console.log(reason, p)
