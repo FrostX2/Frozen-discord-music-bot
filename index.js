@@ -65,8 +65,10 @@ for (const folder of functionFolders) {
 
 require ("./distube/index");
 
-const setupPath = require("path").join(__dirname, "music-setup.json");
-client.musicSetup = require("fs").existsSync(setupPath) ? JSON.parse(require("fs").readFileSync(setupPath, "utf8")) : {};
+try {
+  const setupPath = require("path").join(__dirname, "music-setup.json");
+  client.musicSetup = require("fs").existsSync(setupPath) ? JSON.parse(require("fs").readFileSync(setupPath, "utf8")) : {};
+} catch { client.musicSetup = {}; }
 
 // Pre-download yt-dlp so first play is instant
 const player = require("./player");
