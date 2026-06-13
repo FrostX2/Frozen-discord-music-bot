@@ -1,19 +1,22 @@
 const { createAudioPlayer, createAudioResource, entersState, VoiceConnectionStatus, joinVoiceChannel, AudioPlayerStatus, demuxProbe, StreamType } = require('@discordjs/voice');
 const play = require('play-dl');
+const { spawn } = require('child_process');
+const { existsSync, writeFileSync, chmodSync } = require('fs');
 const { join } = require('path');
 
-const COOKIES_PATH = join(__dirname, 'cookies.txt');
-
-// Authenticate with cookies if available
-try {
-  const { readFileSync } = require('fs');
-  const cookies = readFileSync(COOKIES_PATH, 'utf8');
-  if (cookies.includes('.youtube.com')) {
-    play.setToken({ youtube: { cookie: cookies } });
-  }
-} catch {}
-
 const queues = new Map();
+
+const YTDLP_PATH = join(__dirname, 'yt-dlp');
+
+async function ensureYtDlp() {
+  if (existsSync(YTDLP_PATH)) return;
+  const url = 'https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp';
+  const { execSync } = require('child_process');
+  console.log('Downloading yt-dlp...');
+  execSync(`curl -L "${url}" -o "${YTDLP_PATH}"`, { stdio: 'inherit' });
+  chmodSync(YTDLP_PATH, 0o755);
+  console.log('yt-dlp downloaded');
+}
 
 function getQueue(guildId) {
   if (!queues.has(guildId)) {
@@ -39,19 +42,47 @@ async function playSong(guildId) {
   const song = queue.songs[0];
   queue.current = song;
   try {
-    const audioStream = await play.stream(song.url, { quality: 0 });
-    const probe = await demuxProbe(audioStream.stream);
+    await ensureYtDlp();
+    const ytArgs = [
+      '--no-warnings',
+      '--no-playlist',
+      '-f', 'ba[ext=webm]/ba/b',
+      '-o', '-',
+    ];
+    if (existsSync(join(__dirname, 'cookies.txt'))) {
+      ytArgs.unshift('--cookies', join(__dirname, 'cookies.txt'));
+    }
+    const proc = spawn(YTDLP_PATH, ytArgs.concat(song.url), { stdio: ['ignore', 'pipe', 'pipe'] });
+    proc.stderr.on('data', () => {});
+    const stream = proc.stdout;
+
+    const probe = await demuxProbe(stream);
     const resource = createAudioResource(probe.stream, { inputType: probe.type, inlineVolume: true });
     resource.volume.setVolumeLogarithmic(queue.volume / 100);
     queue.player.play(resource);
     queue.connection.subscribe(queue.player);
+
+    const cleanup = () => {
+      proc.kill();
+      queue.player.removeAllListeners(AudioPlayerStatus.Idle);
+    };
+
+    queue.player.removeAllListeners(AudioPlayerStatus.Idle);
     queue.player.once(AudioPlayerStatus.Idle, () => {
+      cleanup();
       if (queue.loop) {
         queue.songs.push(queue.songs.shift());
       } else {
         queue.songs.shift();
       }
       playSong(guildId);
+    });
+
+    proc.on('error', () => cleanup());
+    proc.on('close', (code) => {
+      if (code !== 0 && queue.player.state.status !== AudioPlayerStatus.Idle) {
+        queue.player.stop();
+      }
     });
   } catch (err) {
     queue.songs.shift();
@@ -65,6 +96,7 @@ module.exports = {
     const guildId = voiceChannel.guildId;
     const queue = getQueue(guildId);
     queue.textChannel = textChannel;
+
     const isUrl = query.match(/https?:\/\/\S+/i);
     let song;
     if (isUrl) {
@@ -75,7 +107,9 @@ module.exports = {
       if (!results.length) throw new Error(`No results for "${query}"`);
       song = { url: results[0].url, title: results[0].title };
     }
+
     queue.songs.push(song);
+
     if (!queue.connection) {
       queue.connection = joinVoiceChannel({
         channelId: voiceChannel.id,
@@ -84,6 +118,7 @@ module.exports = {
       });
       await entersState(queue.connection, VoiceConnectionStatus.Ready, 20000);
     }
+
     if (!queue.current || queue.player.state.status === AudioPlayerStatus.Idle) {
       playSong(guildId);
     }
@@ -91,14 +126,12 @@ module.exports = {
   },
 
   skip(guildId) {
-    const queue = getQueue(guildId);
-    queue.player.stop();
+    getQueue(guildId).player.stop();
   },
 
   stop(guildId) {
     const queue = getQueue(guildId);
     queue.songs = [];
-    queue.loop = false;
     queue.player.stop();
     queue.connection?.destroy();
     queue.connection = null;
@@ -107,23 +140,19 @@ module.exports = {
   },
 
   pause(guildId) {
-    const queue = getQueue(guildId);
-    queue.player.pause();
+    getQueue(guildId).player.pause();
   },
 
   resume(guildId) {
-    const queue = getQueue(guildId);
-    queue.player.unpause();
+    getQueue(guildId).player.unpause();
   },
 
   setVolume(guildId, vol) {
-    const queue = getQueue(guildId);
-    queue.volume = vol;
+    getQueue(guildId).volume = vol;
   },
 
   setLoop(guildId, loop) {
-    const queue = getQueue(guildId);
-    queue.loop = loop;
+    getQueue(guildId).loop = loop;
   },
 
   getQueue(guildId) {
