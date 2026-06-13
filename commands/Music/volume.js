@@ -17,7 +17,7 @@ module.exports = {
         ),
 
     async execute(interaction, client) {
-        const volume = interaction.options.getNumber("volume");
+        const volume = interaction.options.getInteger("volume");
         const voiceChannel = interaction.member.voice.channel;
         const queue = await client.distube.getQueue(interaction);
         if (!voiceChannel) {
