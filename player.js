@@ -1,6 +1,7 @@
 const { createAudioPlayer, createAudioResource, entersState, VoiceConnectionStatus, joinVoiceChannel, AudioPlayerStatus, demuxProbe } = require('@discordjs/voice');
 const play = require('play-dl');
-const { spawn, exec, execSync } = require('child_process');
+const { spawn } = require('child_process');
+const https = require('https');
 const { existsSync, chmodSync } = require('fs');
 const { join } = require('path');
 
@@ -32,24 +33,54 @@ function buildSong(info, member) {
   };
 }
 
+function detectArch() {
+  try {
+    const arch = require('child_process').execSync('uname -m', { encoding: 'utf8' }).trim();
+    return arch === 'aarch64' ? 'yt-dlp_linux_aarch64' : 'yt-dlp_linux';
+  } catch {
+    return 'yt-dlp_linux';
+  }
+}
+
 async function ensureYtDlp() {
   if (existsSync(YTDLP_PATH)) return;
   if (ytDlpPromise) return ytDlpPromise;
-  const arch = execSync('uname -m', { encoding: 'utf8' }).trim();
-  const bin = arch === 'aarch64' ? 'yt-dlp_linux_aarch64' : 'yt-dlp_linux';
+  const bin = detectArch();
   const url = `https://github.com/yt-dlp/yt-dlp/releases/latest/download/${bin}`;
-  ytDlpPromise = new Promise((resolve, reject) => {
-    console.log(`Downloading yt-dlp (${bin})...`);
-    const curl = spawn('curl', ['-fsL', url, '-o', YTDLP_PATH], { stdio: 'inherit' });
-    curl.on('close', code => {
-      if (code !== 0) return reject(new Error(`curl exited ${code}`));
-      chmodSync(YTDLP_PATH, 0o755);
-      console.log('yt-dlp downloaded');
-      resolve();
-    });
-    curl.on('error', reject);
+  ytDlpPromise = downloadFile(url, YTDLP_PATH).then(() => {
+    chmodSync(YTDLP_PATH, 0o755);
+    console.log('yt-dlp downloaded');
+  }).catch(err => {
+    ytDlpPromise = null;
+    throw new Error(`Failed to download yt-dlp: ${err.message}`);
   });
   return ytDlpPromise;
+}
+
+function downloadFile(url, dest) {
+  return new Promise((resolve, reject) => {
+    const file = require('fs').createWriteStream(dest);
+    const request = https.get(url, { headers: { 'User-Agent': 'Mozilla/5.0' } }, (res) => {
+      if (res.statusCode >= 300 && res.statusCode < 400 && res.headers.location) {
+        file.close();
+        require('fs').unlink(dest, () => {});
+        resolve(downloadFile(res.headers.location, dest));
+        return;
+      }
+      if (res.statusCode !== 200) {
+        file.close();
+        require('fs').unlink(dest, () => {});
+        reject(new Error(`HTTP ${res.statusCode}`));
+        return;
+      }
+      res.pipe(file);
+      file.on('finish', () => { file.close(); resolve(); });
+      file.on('error', (err) => { file.close(); require('fs').unlink(dest, () => {}); reject(err); });
+      res.on('error', (err) => { file.close(); require('fs').unlink(dest, () => {}); reject(err); });
+    });
+    request.on('error', (err) => { file.close(); require('fs').unlink(dest, () => {}); reject(err); });
+    request.setTimeout(60000, () => { request.destroy(); file.close(); require('fs').unlink(dest, () => {}); reject(new Error('timeout')); });
+  });
 }
 
 function getQueue(guildId) {
