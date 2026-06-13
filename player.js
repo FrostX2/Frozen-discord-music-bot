@@ -5,6 +5,7 @@ const https = require('https');
 const { existsSync, chmodSync } = require('fs');
 const { join } = require('path');
 const { PassThrough } = require('stream');
+const ffmpegPath = require('ffmpeg-static');
 
 const queues = new Map();
 const YTDLP_PATH = join(__dirname, 'yt-dlp');
@@ -126,7 +127,7 @@ async function playSong(guildId) {
     let audioStream = proc.stdout;
 
     if (!hasCookies) {
-      const ffmpeg = spawn('ffmpeg', [
+      const ffmpeg = spawn(ffmpegPath, [
         '-i', 'pipe:0', '-f', 'opus', '-ac', '2', '-ar', '48000',
         '-page_duration', '0', 'pipe:1'
       ], { stdio: ['pipe', 'pipe', 'pipe'] });

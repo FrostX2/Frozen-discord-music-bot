@@ -68,6 +68,8 @@ require ("./distube/index");
 // Pre-download yt-dlp so first play is instant
 const player = require("./player");
 player.ensureYtDlp().catch(() => {});
+const ffmpegPath = require("ffmpeg-static");
+console.log(`ffmpeg: ${require("fs").existsSync(ffmpegPath) ? "ok" : "MISSING"} (${ffmpegPath})`);
 
 
 
