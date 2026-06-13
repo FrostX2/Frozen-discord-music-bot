@@ -1,7 +1,7 @@
-const { createAudioPlayer, createAudioResource, entersState, VoiceConnectionStatus, joinVoiceChannel, AudioPlayerStatus, demuxProbe, StreamType } = require('@discordjs/voice');
+const { createAudioPlayer, createAudioResource, entersState, VoiceConnectionStatus, joinVoiceChannel, AudioPlayerStatus, demuxProbe } = require('@discordjs/voice');
 const play = require('play-dl');
-const { spawn } = require('child_process');
-const { existsSync, writeFileSync, chmodSync } = require('fs');
+const { spawn, execSync } = require('child_process');
+const { existsSync, chmodSync } = require('fs');
 const { join } = require('path');
 
 const queues = new Map();
@@ -32,10 +32,11 @@ function buildSong(info, member) {
 
 async function ensureYtDlp() {
   if (existsSync(YTDLP_PATH)) return;
-  const url = 'https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp';
-  const { execSync } = require('child_process');
-  console.log('Downloading yt-dlp...');
-  execSync(`curl -L "${url}" -o "${YTDLP_PATH}"`, { stdio: 'inherit' });
+  const arch = execSync('uname -m', { encoding: 'utf8' }).trim();
+  const bin = arch === 'aarch64' ? 'yt-dlp_linux_aarch64' : 'yt-dlp_linux';
+  const url = `https://github.com/yt-dlp/yt-dlp/releases/latest/download/${bin}`;
+  console.log(`Downloading yt-dlp (${bin})...`);
+  execSync(`curl -fsL "${url}" -o "${YTDLP_PATH}"`, { stdio: 'inherit' });
   chmodSync(YTDLP_PATH, 0o755);
   console.log('yt-dlp downloaded');
 }
