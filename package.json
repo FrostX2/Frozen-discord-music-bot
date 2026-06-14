@@ -7,7 +7,7 @@
     "lavalink-client": "^2.10.2"
   },
   "name": "FuriMusic",
-  "version": "2.0.0",
+  "version": "2.0.1",
   "main": "index.js",
   "scripts": {
     "postinstall": "node setup-nodelink.js",
