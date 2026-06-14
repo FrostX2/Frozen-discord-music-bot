@@ -98,7 +98,6 @@ const textHandlers = {
 };
 
 textHandlers.np = textHandlers.nowplaying;
-};
 
 module.exports = {
   name: "messageCreate",
