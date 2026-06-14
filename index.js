@@ -79,7 +79,8 @@ client.once('ready', () => {
   lavalink.init(client);
   console.log('Lavalink initialized');
 
-  const channelName = 'song-requests';
+  const channelName = 'song';
+  const channelTopic = 'Paste a song name or link here to play music';
 
   client.guilds.cache.forEach(async (guild) => {
     try {
@@ -93,7 +94,7 @@ client.once('ready', () => {
       const channel = await guild.channels.create({
         name: channelName,
         type: 0,
-        topic: 'Music commands — type a song name or URL to play',
+        topic: channelTopic,
       });
       console.log(`[Setup] Created #${channel.name} in ${guild.name}`);
       client.musicSetup[guild.id] = channel.id;
