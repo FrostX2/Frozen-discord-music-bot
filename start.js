@@ -83,6 +83,7 @@ async function main() {
 
   if (process.env.LAVALINK_HOST) {
     console.log(`Using external Lavalink at ${process.env.LAVALINK_HOST}:${process.env.LAVALINK_PORT || 2333}`);
+    await new Promise((resolve) => setTimeout(resolve, 5000));
   } else {
     console.log('Starting NodeLink...');
     nodelinkProc = startNodeLink();

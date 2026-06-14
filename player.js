@@ -49,6 +49,15 @@ module.exports = {
     queue.textChannel = textChannel;
 
     const lavalink = require('./lavalink').getLavalink();
+    const { isConnected } = require('./lavalink');
+
+    // Wait up to 15s for a node to connect
+    for (let i = 0; i < 30; i++) {
+      if (isConnected()) break;
+      await new Promise(r => setTimeout(r, 500));
+    }
+    if (!isConnected()) throw new Error('Lavalink node not connected yet — wait a few seconds and try again');
+
     let player = lavalink.getPlayer(guildId);
 
     if (!player) {
