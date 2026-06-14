@@ -27,8 +27,10 @@ function writeConfig() {
   }
   // Enable YouTube OAuth token retrieval
   cfg = cfg.replace(/getOAuthToken:\s*false/g, `getOAuthToken: true`);
-  // Prepend 'Android' to playback clients (most permissive, often works when others don't)
-  cfg = cfg.replace(/playback:\s*\[([^\]]+)\]/g, "playback: ['Android', $1]");
+  // Minimize YouTube playback clients for fast failure → immediate fallback to SoundCloud
+  cfg = cfg.replace(/playback:\s*\[[^\]]*\]/g, "playback: ['Android']");
+  // No retries on YouTube failure — fail fast, fallback fast
+  cfg = cfg.replace(/maxRetries:\s*\d+/g, 'maxRetries: 0');
 
   fs.writeFileSync(CONFIG_DST, cfg);
 }
