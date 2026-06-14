@@ -3,6 +3,7 @@ const { ActivityType, ChannelType, PermissionsBitField, EmbedBuilder } = require
 async function ensureMusicChannels(client) {
   const setup = {};
   const channelName = '🎵┊𝓯𝓾𝓻𝓲𝓶𝓾𝓼𝓲𝓬';
+  const voiceName = '🔊┊𝓿𝓸𝓲𝓬𝓮';
   const categoryName = '🎵┊𝓶𝓾𝓼𝓲𝓬';
   for (const guild of client.guilds.cache.values()) {
     let channel;
@@ -29,6 +30,15 @@ async function ensureMusicChannels(client) {
             allow: [PermissionsBitField.Flags.ViewChannel, PermissionsBitField.Flags.SendMessages, PermissionsBitField.Flags.ReadMessageHistory],
           }],
         });
+        // also create the voice channel
+        const voiceExists = guild.channels.cache.find(c => c.name === voiceName && c.type === ChannelType.GuildVoice);
+        if (!voiceExists) {
+          await guild.channels.create({
+            name: voiceName,
+            type: ChannelType.GuildVoice,
+            parent: category.id,
+          });
+        }
         const embed = new EmbedBuilder()
           .setColor(client.config.colorDefault || "#00FF00")
           .setTitle("FuriMusic")

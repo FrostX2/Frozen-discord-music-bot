@@ -4,6 +4,7 @@ module.exports = {
   name: "guildCreate",
   async execute(guild, client) {
     const channelName = '🎵┊𝓯𝓾𝓻𝓲𝓶𝓾𝓼𝓲𝓬';
+    const voiceName = '🔊┊𝓿𝓸𝓲𝓬𝓮';
     const categoryName = '🎵┊𝓶𝓾𝓼𝓲𝓬';
     try {
       let category = guild.channels.cache.find(c => c.name === categoryName && c.type === ChannelType.GuildCategory);
@@ -25,6 +26,16 @@ module.exports = {
           },
         ],
       });
+
+      // also create the voice channel
+      const voiceExists = guild.channels.cache.find(c => c.name === voiceName && c.type === ChannelType.GuildVoice);
+      if (!voiceExists) {
+        await guild.channels.create({
+          name: voiceName,
+          type: ChannelType.GuildVoice,
+          parent: category.id,
+        });
+      }
 
       const embed = new EmbedBuilder()
         .setColor(client.config.colorDefault || "#00FF00")
