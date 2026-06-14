@@ -27,9 +27,12 @@ module.exports = {
 
     try {
       const song = await client.player.play(interaction.channel, voiceChannel, keyword, interaction.member);
+      const desc = song.type === 'playlist'
+        ? `Added **${song.count}** songs from playlist **${song.title}**`
+        : `Added [${song.title}](${song.url}) to the queue`;
       const embed = new EmbedBuilder()
         .setColor(client.config.colorDefault)
-        .setDescription(`Added [${song.title}](${song.url}) to the queue`);
+        .setDescription(desc);
       if (isMsg) {
         interaction.reply({ embeds: [embed] });
       } else {

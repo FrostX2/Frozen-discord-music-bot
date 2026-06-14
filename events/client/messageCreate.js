@@ -9,7 +9,10 @@ const textHandlers = {
     const msg = await message.reply({ embeds: [new EmbedBuilder().setColor(client.config.colorDefault).setDescription("Finding song...")] });
     try {
       const song = await client.player.play(message.channel, voiceChannel, keyword, message.member);
-      const embed = new EmbedBuilder().setColor(client.config.colorDefault).setDescription(`Added [${song.title}](${song.url}) to the queue`);
+      const desc = song.type === 'playlist'
+        ? `Added **${song.count}** songs from playlist **${song.title}**`
+        : `Added [${song.title}](${song.url}) to the queue`;
+      const embed = new EmbedBuilder().setColor(client.config.colorDefault).setDescription(desc);
       msg.edit({ embeds: [embed] });
     } catch (err) {
       msg.edit({ embeds: [new EmbedBuilder().setColor(client.config.colorError).setDescription(`Error: ${err.message}`)] });
@@ -131,8 +134,10 @@ module.exports = {
 
     try {
       const song = await message.client.player.play(message.channel, voiceChannel, query, message.member);
-      const embed = new EmbedBuilder().setColor(message.client.config.colorDefault).setDescription(`Added [${song.title}](${song.url}) to the queue`);
-      message.reply({ embeds: [embed] });
+      const desc = song.type === 'playlist'
+        ? `Added **${song.count}** songs from playlist **${song.title}**`
+        : `Added [${song.title}](${song.url}) to the queue`;
+      message.reply({ embeds: [new EmbedBuilder().setColor(message.client.config.colorDefault).setDescription(desc)] });
     } catch (err) {
       console.error("Auto-play error:", err);
       message.reply({ embeds: [new EmbedBuilder().setColor(message.client.config.colorError).setDescription(`Error: ${err.message}`)] }).catch(() => {});

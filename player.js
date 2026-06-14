@@ -79,11 +79,12 @@ module.exports = {
     const result = await player.search({ query: isUrl ? query : query, source: isUrl ? undefined : 'ytmsearch' }, member);
     if (!result.tracks?.length) throw new Error(`No results for "${query}"`);
 
-    const track = result.tracks[0];
-    const song = buildSong(track, member);
-    queue.songs.push(song);
+    const tracks = result.tracks;
+    const songs = tracks.map(t => buildSong(t, member));
+    queue.songs.push(...songs);
 
-    player.queue.add(track);
+    player.queue.add(tracks);
+
     if (!player.playing && !player.paused) {
       try {
         await player.play();
@@ -92,7 +93,15 @@ module.exports = {
       }
     }
 
-    return song;
+    if (result.playlist) {
+      return {
+        type: 'playlist',
+        title: result.playlist.name || 'Playlist',
+        count: tracks.length,
+        song: songs[0],
+      };
+    }
+    return songs[0];
   },
 
   skip(guildId) {
