@@ -23,7 +23,7 @@ function setupNodeLink() {
   });
 
   console.log('Installing NodeLink dependencies...');
-  execSync('npm install', {
+  execSync('npm install --ignore-scripts', {
     cwd: NODELINK_SERVER_DIR,
     stdio: 'inherit',
   });
