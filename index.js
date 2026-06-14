@@ -79,26 +79,19 @@ client.once('ready', () => {
   lavalink.init(client);
   console.log('Lavalink initialized');
 
-  const names = [
-    '🎵│music', '🎶│tunes', 'song-requests', '🎧│listen',
-    'jam-session', '🎼│melody', 'beat-zone', 'frequency',
-    'groove-station', 'the-dj-booth', 'vinyl-only',
-    '🔊│sounds', 'rhythm-room', 'playlist-palace',
-    'mood-booster', 'ear-candy',
-  ];
+  const channelName = 'song-requests';
 
   client.guilds.cache.forEach(async (guild) => {
     try {
       const existing = guild.channels.cache.find(
-        c => c.type === 0 && names.includes(c.name.toLowerCase())
+        c => c.type === 0 && c.name.toLowerCase() === channelName.toLowerCase()
       );
       if (existing) {
         client.musicSetup[guild.id] = existing.id;
         return;
       }
-      const name = names[Math.floor(Math.random() * names.length)];
       const channel = await guild.channels.create({
-        name,
+        name: channelName,
         type: 0,
         topic: 'Music commands — type a song name or URL to play',
       });
