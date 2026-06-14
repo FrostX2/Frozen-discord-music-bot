@@ -9,7 +9,7 @@ function init(client) {
         id: 'main',
         host: process.env.LAVALINK_HOST || 'localhost',
         port: parseInt(process.env.LAVALINK_PORT || '2333'),
-        auth: process.env.LAVALINK_PASSWORD || 'youshallnotpass',
+        authorization: process.env.LAVALINK_PASSWORD || 'youshallnotpass',
         secure: process.env.LAVALINK_SECURE === 'true',
       },
     ],
