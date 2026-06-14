@@ -67,7 +67,7 @@ module.exports = {
     }
 
     const isUrl = query.match(/https?:\/\/\S+/i);
-    const result = await player.search({ query: isUrl ? query : query, source: isUrl ? undefined : 'ytmsearch' }, member);
+    const result = await player.search({ query: isUrl ? query : query, source: isUrl ? undefined : 'scsearch' }, member);
     if (!result.tracks?.length) throw new Error(`No results for "${query}"`);
 
     const track = result.tracks[0];
