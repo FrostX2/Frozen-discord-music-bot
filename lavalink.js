@@ -58,6 +58,11 @@ function init(client) {
     if (queue) {
       queue.current = queue.songs[0] || null;
     }
+
+    // Try to select Thai audio track if available (NodeLink only — silently ignored by external Lavalink)
+    if (!process.env.LAVALINK_HOST) {
+      lavalink.changeAudioTrackLanguage(player, 'th').catch(() => {});
+    }
   });
 
   lavalink.on('playerUpdate', (player, state) => {
