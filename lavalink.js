@@ -100,13 +100,8 @@ function init(client) {
     }
   });
 
-  // Forward Discord voice gateway events to lavalink-client
-  client.ws?.on('VOICE_SERVER_UPDATE', (data, shardId) => {
-    lavalink.handleVoiceUpdate({ t: 'VOICE_SERVER_UPDATE', d: data });
-  });
-  client.ws?.on('VOICE_STATE_UPDATE', (data, shardId) => {
-    lavalink.handleVoiceUpdate({ t: 'VOICE_STATE_UPDATE', d: data });
-  });
+  // Forward raw Discord gateway events so lavalink-client receives voice updates
+  client.on('raw', (packet) => lavalink.sendRawData(packet).catch(() => {}));
 
   lavalink.init(client.user.id);
   if (!isExternal) {
