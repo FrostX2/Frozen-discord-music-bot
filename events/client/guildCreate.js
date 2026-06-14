@@ -3,11 +3,20 @@ const { EmbedBuilder, ChannelType, PermissionsBitField } = require("discord.js")
 module.exports = {
   name: "guildCreate",
   async execute(guild, client) {
-    const name = '🎵┊𝓯𝓾𝓻𝓲𝓶𝓾𝓼𝓲𝓬';
+    const channelName = '🎵┊𝓯𝓾𝓻𝓲𝓶𝓾𝓼𝓲𝓬';
+    const categoryName = '🎵┊𝓶𝓾𝓼𝓲𝓬';
     try {
+      let category = guild.channels.cache.find(c => c.name === categoryName && c.type === ChannelType.GuildCategory);
+      if (!category) {
+        category = await guild.channels.create({
+          name: categoryName,
+          type: ChannelType.GuildCategory,
+        });
+      }
       const channel = await guild.channels.create({
-        name,
+        name: channelName,
         type: ChannelType.GuildText,
+        parent: category.id,
         topic: "Paste a song name or link here to play music",
         permissionOverwrites: [
           {

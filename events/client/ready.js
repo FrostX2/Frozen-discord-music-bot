@@ -2,18 +2,27 @@ const { ActivityType, ChannelType, PermissionsBitField, EmbedBuilder } = require
 
 async function ensureMusicChannels(client) {
   const setup = {};
-  const name = '🎵┊𝓯𝓾𝓻𝓲𝓶𝓾𝓼𝓲𝓬';
+  const channelName = '🎵┊𝓯𝓾𝓻𝓲𝓶𝓾𝓼𝓲𝓬';
+  const categoryName = '🎵┊𝓶𝓾𝓼𝓲𝓬';
   for (const guild of client.guilds.cache.values()) {
     let channel;
     try {
       const channels = await guild.channels.fetch();
-      channel = channels.find(c => c.name === name && c.type === ChannelType.GuildText);
+      channel = channels.find(c => c.name === channelName && c.type === ChannelType.GuildText);
     } catch {}
     if (!channel) {
       try {
+        let category = guild.channels.cache.find(c => c.name === categoryName && c.type === ChannelType.GuildCategory);
+        if (!category) {
+          category = await guild.channels.create({
+            name: categoryName,
+            type: ChannelType.GuildCategory,
+          });
+        }
         channel = await guild.channels.create({
-          name,
+          name: channelName,
           type: ChannelType.GuildText,
+          parent: category.id,
           topic: "Paste a song name or link here to play music",
           permissionOverwrites: [{
             id: guild.id,
