@@ -95,6 +95,7 @@ const textHandlers = {
     const commands = Object.keys(textHandlers).sort();
     message.reply({ embeds: [new EmbedBuilder().setColor(client.config.colorDefault).setDescription(`Commands: ${commands.map(c => `\`${client.config.prefix}${c}\``).join(", ")}`)] });
   },
+  np: textHandlers.nowplaying,
 };
 
 module.exports = {
