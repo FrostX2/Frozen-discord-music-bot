@@ -79,7 +79,7 @@ client.once('ready', () => {
   lavalink.init(client);
   console.log('Lavalink initialized');
 
-  const channelName = 'ear-candy';
+  const channelName = '🎵music';
   const channelTopic = 'Paste a song name or link here to play music';
 
   client.guilds.cache.forEach(async (guild) => {
