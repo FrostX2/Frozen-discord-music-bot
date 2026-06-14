@@ -1,37 +1,19 @@
 require('dotenv').config();
 
-const { spawn, execSync } = require('child_process');
+const { spawn } = require('child_process');
 const path = require('path');
 const fs = require('fs');
 
-const NODELINK_DIR = path.join(__dirname, 'nodelink');
-const NODELINK_SERVER_DIR = path.join(NODELINK_DIR, 'server');
-const CONFIG_SRC = path.join(NODELINK_DIR, 'config.js');
+const NODELINK_SERVER_DIR = path.join(__dirname, 'nodelink', 'server');
+const CONFIG_SRC = path.join(__dirname, 'nodelink', 'config.js');
 const CONFIG_DST = path.join(NODELINK_SERVER_DIR, 'config.js');
 
-function setupNodeLink() {
-  if (fs.existsSync(path.join(NODELINK_SERVER_DIR, 'package.json'))) {
-    console.log('NodeLink already installed');
-    return;
+function startNodeLink() {
+  if (!fs.existsSync(path.join(NODELINK_SERVER_DIR, 'package.json'))) {
+    console.error('NodeLink not found. Run `node setup-nodelink.js` or set LAVALINK_HOST env var.');
+    process.exit(1);
   }
 
-  console.log('Cloning NodeLink...');
-  fs.mkdirSync(NODELINK_DIR, { recursive: true });
-  execSync('git clone https://github.com/PerformanC/NodeLink.git server', {
-    cwd: NODELINK_DIR,
-    stdio: 'inherit',
-  });
-
-  console.log('Installing NodeLink dependencies...');
-  execSync('npm install --ignore-scripts', {
-    cwd: NODELINK_SERVER_DIR,
-    stdio: 'inherit',
-  });
-
-  console.log('NodeLink setup complete');
-}
-
-function startNodeLink() {
   fs.copyFileSync(CONFIG_SRC, CONFIG_DST);
 
   const proc = spawn('node', [
@@ -70,13 +52,11 @@ function startNodeLink() {
 }
 
 async function main() {
-  const externalHost = process.env.LAVALINK_HOST;
   let nodelinkProc = null;
 
-  if (externalHost) {
-    console.log(`Using external Lavalink at ${externalHost}:${process.env.LAVALINK_PORT || 2333}`);
+  if (process.env.LAVALINK_HOST) {
+    console.log(`Using external Lavalink at ${process.env.LAVALINK_HOST}:${process.env.LAVALINK_PORT || 2333}`);
   } else {
-    setupNodeLink();
     console.log('Starting NodeLink...');
     nodelinkProc = startNodeLink();
 
