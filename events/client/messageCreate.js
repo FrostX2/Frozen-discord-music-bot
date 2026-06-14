@@ -1,5 +1,13 @@
 const { EmbedBuilder } = require("discord.js");
 
+function fmt(ms) {
+  if (!ms) return "0:00";
+  const s = Math.floor(ms / 1000);
+  const m = Math.floor(s / 60);
+  const sec = s % 60;
+  return `${m}:${String(sec).padStart(2, '0')}`;
+}
+
 const textHandlers = {
   async play(client, message, args) {
     const keyword = args.join(" ");
@@ -61,9 +69,28 @@ const textHandlers = {
     message.reply({ embeds: [new EmbedBuilder().setColor(client.config.colorDefault).setDescription(tracks.slice(0, 4000))] });
   },
   async nowplaying(client, message) {
+    const player = require('../../lavalink').getLavalink()?.getPlayer(message.guildId);
+    if (!player || !player.queue.current) {
+      return message.reply({ embeds: [new EmbedBuilder().setColor(client.config.colorError).setDescription("Nothing is playing right now.")] });
+    }
+    const track = player.queue.current;
     const queue = client.player.getQueue(message.guildId);
-    if (!queue.current) return message.reply({ embeds: [new EmbedBuilder().setColor(client.config.colorDefault).setDescription("Nothing is playing!")] });
-    message.reply({ embeds: [new EmbedBuilder().setColor(client.config.colorDefault).setDescription(`Now playing: [${queue.current.title}](${queue.current.url})`)] });
+    const repeatMode = player.repeatMode;
+    const repeatLabel = repeatMode === 'queue' ? "List" : repeatMode === 'track' ? "Song" : "Off";
+    const status = `Volume: \`${player.volume}%\` | Repeat: \`${repeatLabel}\``;
+    const embed = new EmbedBuilder()
+      .setColor(client.config.colorDefault)
+      .setAuthor({ name: "Now Playing", iconURL: client.user.displayAvatarURL() })
+      .setDescription(`> [${track.info.title}](${track.info.uri})`)
+      .addFields([
+        { name: "Status", value: status, inline: false },
+        { name: "Duration", value: `${fmt(player.position)} / ${fmt(track.info.duration)}`, inline: true },
+        { name: "Author", value: track.info.author || "Unknown", inline: true },
+        { name: "Request by", value: queue?.current?.member?.toString() || "Unknown", inline: true },
+      ])
+      .setImage(track.info.artworkUrl)
+      .setFooter({ text: `${queue?.songs?.length || 0} songs in queue` });
+    await message.reply({ embeds: [embed] });
   },
   async remove(client, message, args) {
     const id = parseInt(args[0]);

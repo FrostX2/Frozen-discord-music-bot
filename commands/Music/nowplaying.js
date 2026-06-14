@@ -51,7 +51,8 @@ module.exports = {
     const track = player.queue.current;
     const playerMod = require('../../player');
     const queue = playerMod.getQueue(interaction.guildId);
-    const repeatLabel = queue?.repeatMode === 2 ? "List" : queue?.repeatMode === 1 ? "Song" : "Off";
+    const repeatMode = player.repeatMode;
+    const repeatLabel = repeatMode === 'queue' ? "List" : repeatMode === 'track' ? "Song" : "Off";
     const status = `Volume: \`${player.volume}%\` | Repeat: \`${repeatLabel}\``;
 
     const embed = new EmbedBuilder()
