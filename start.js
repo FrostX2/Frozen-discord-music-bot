@@ -77,11 +77,6 @@ async function main() {
 
     await new Promise((resolve) => setTimeout(resolve, 5000));
     console.log('NodeLink is ready');
-
-    process.env.LAVALINK_HOST = 'localhost';
-    process.env.LAVALINK_PORT = process.env.NODELINK_PORT || '2333';
-    process.env.LAVALINK_PASSWORD = process.env.NODELINK_PASSWORD || 'youshallnotpass';
-    process.env.LAVALINK_SECURE = 'false';
   }
 
   process.on('exit', () => { if (nodelinkProc) nodelinkProc.kill(); });
