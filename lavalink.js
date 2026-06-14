@@ -44,7 +44,7 @@ function init(client) {
   });
 
   lavalink.nodeManager.on('error', (node, error) => {
-    console.error(`[Lavalink] Node "${node.options.id}" error:`, error.message);
+    console.error(`[Lavalink] Node "${node.options.id}" error:`, error?.message || error || 'unknown');
   });
 
   lavalink.nodeManager.on('disconnect', (node) => {
@@ -52,11 +52,17 @@ function init(client) {
   });
 
   lavalink.on('trackStart', (player, track) => {
+    console.log(`[Lavalink] trackStart: ${track.info.title} (${player.guildId})`);
     const playerMod = require('./player');
     const queue = playerMod.getQueue(player.guildId);
     if (queue) {
       queue.current = queue.songs[0] || null;
     }
+  });
+
+  lavalink.on('playerUpdate', (player, state) => {
+    if (state.position === 0) return; // skip initial
+    console.log(`[Lavalink] playerUpdate ${player.guildId}: state=${player.state} position=${state.position} connected=${player.voiceConnected}`);
   });
 
   lavalink.on('trackEnd', (player, track) => {
