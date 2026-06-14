@@ -1,73 +1,102 @@
-const { spawn } = require('child_process');
+require('dotenv').config();
+
+const { spawn, execSync } = require('child_process');
 const path = require('path');
-const { execSync } = require('child_process');
+const fs = require('fs');
 
-const lavalinkDir = path.join(__dirname, 'lavalink');
-let lavalinkProc = null;
+const NODELINK_DIR = path.join(__dirname, 'nodelink');
+const NODELINK_SERVER_DIR = path.join(NODELINK_DIR, 'server');
+const CONFIG_SRC = path.join(NODELINK_DIR, 'config.js');
+const CONFIG_DST = path.join(NODELINK_SERVER_DIR, 'config.js');
 
-function hasJava() {
-  try {
-    execSync('java -version', { stdio: 'ignore' });
-    return true;
-  } catch {
-    return false;
+function setupNodeLink() {
+  if (fs.existsSync(path.join(NODELINK_SERVER_DIR, 'package.json'))) {
+    console.log('NodeLink already installed');
+    return;
   }
+
+  console.log('Cloning NodeLink...');
+  fs.mkdirSync(NODELINK_DIR, { recursive: true });
+  execSync('git clone https://github.com/PerformanC/NodeLink.git server', {
+    cwd: NODELINK_DIR,
+    stdio: 'inherit',
+  });
+
+  console.log('Installing NodeLink dependencies...');
+  execSync('npm install', {
+    cwd: NODELINK_SERVER_DIR,
+    stdio: 'inherit',
+  });
+
+  console.log('NodeLink setup complete');
 }
 
-function startLavalink() {
-  return new Promise((resolve, reject) => {
-    lavalinkProc = spawn('java', ['-jar', 'Lavalink.jar'], {
-      cwd: lavalinkDir,
-      stdio: ['ignore', 'pipe', 'pipe'],
-    });
+function startNodeLink() {
+  fs.copyFileSync(CONFIG_SRC, CONFIG_DST);
 
-    lavalinkProc.stdout.on('data', (data) => {
-      const text = data.toString().trim();
-      if (text) console.log('[Lavalink]', text.split('\n').filter(Boolean).pop());
-      if (text.includes('Started Launcher')) resolve(lavalinkProc);
-    });
-
-    lavalinkProc.stderr.on('data', (data) => {
-      const text = data.toString().trim();
-      if (text) console.error('[Lavalink]', text);
-    });
-
-    lavalinkProc.on('close', (code) => {
-      console.log(`Lavalink exited with code ${code}`);
-      process.exit(1);
-    });
-
-    lavalinkProc.on('error', (err) => {
-      reject(err);
-    });
-
-    setTimeout(() => resolve(lavalinkProc), 8000);
+  const proc = spawn('node', [
+    '--dns-result-order=ipv4first',
+    '--import', 'tsx',
+    'src/index.ts',
+  ], {
+    cwd: NODELINK_SERVER_DIR,
+    stdio: ['ignore', 'pipe', 'pipe'],
+    env: { ...process.env },
   });
+
+  proc.stdout.on('data', (data) => {
+    for (const line of data.toString().trim().split('\n').filter(Boolean)) {
+      console.log('[NodeLink]', line);
+    }
+  });
+
+  proc.stderr.on('data', (data) => {
+    for (const line of data.toString().trim().split('\n').filter(Boolean)) {
+      console.error('[NodeLink]', line);
+    }
+  });
+
+  proc.on('close', (code) => {
+    console.log(`NodeLink exited with code ${code}`);
+    process.exit(1);
+  });
+
+  proc.on('error', (err) => {
+    console.error('Failed to start NodeLink:', err.message);
+    process.exit(1);
+  });
+
+  return proc;
 }
 
 async function main() {
   const externalHost = process.env.LAVALINK_HOST;
+  let nodelinkProc = null;
 
   if (externalHost) {
     console.log(`Using external Lavalink at ${externalHost}:${process.env.LAVALINK_PORT || 2333}`);
-  } else if (hasJava()) {
-    console.log('Starting Lavalink...');
-    await startLavalink();
-    console.log('Lavalink is ready');
   } else {
-    console.error('No Java found. Set LAVALINK_HOST env var to use an external Lavalink server.');
-    process.exit(1);
+    setupNodeLink();
+    console.log('Starting NodeLink...');
+    nodelinkProc = startNodeLink();
+
+    await new Promise((resolve) => setTimeout(resolve, 5000));
+    console.log('NodeLink is ready');
+
+    process.env.LAVALINK_HOST = 'localhost';
+    process.env.LAVALINK_PORT = process.env.NODELINK_PORT || '2333';
+    process.env.LAVALINK_PASSWORD = process.env.NODELINK_PASSWORD || 'youshallnotpass';
+    process.env.LAVALINK_SECURE = 'false';
   }
 
-  process.on('exit', () => { if (lavalinkProc) lavalinkProc.kill(); });
-  process.on('SIGINT', () => { if (lavalinkProc) lavalinkProc.kill(); process.exit(0); });
-  process.on('SIGTERM', () => { if (lavalinkProc) lavalinkProc.kill(); process.exit(0); });
+  process.on('exit', () => { if (nodelinkProc) nodelinkProc.kill(); });
+  process.on('SIGINT', () => { if (nodelinkProc) nodelinkProc.kill(); process.exit(0); });
+  process.on('SIGTERM', () => { if (nodelinkProc) nodelinkProc.kill(); process.exit(0); });
 
   require('./index.js');
 }
 
-main().catch(err => {
+main().catch((err) => {
   console.error('Startup error:', err);
-  if (lavalinkProc) lavalinkProc.kill();
   process.exit(1);
 });

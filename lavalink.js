@@ -1,16 +1,27 @@
-const { LavalinkManager } = require('lavalink-client');
+const { LavalinkManager, NodeType, NodeLinkDefaultSources } = require('lavalink-client');
 
 let lavalink = null;
 
+function isConnected() {
+  if (!lavalink) return false;
+  const node = lavalink.nodeManager.nodes.get('main');
+  return node?.connected === true;
+}
+
 function init(client) {
+  const isExternal = !!process.env.LAVALINK_HOST;
+
   lavalink = new LavalinkManager({
     nodes: [
       {
         id: 'main',
         host: process.env.LAVALINK_HOST || 'localhost',
-        port: parseInt(process.env.LAVALINK_PORT || '2333'),
-        authorization: process.env.LAVALINK_PASSWORD || 'youshallnotpass',
-        secure: process.env.LAVALINK_SECURE === 'true',
+        port: parseInt(process.env.LAVALINK_PORT || (isExternal ? '443' : '2333')),
+        authorization: process.env.LAVALINK_PASSWORD || (isExternal ? 'BatuManaBisa' : 'youshallnotpass'),
+        secure: isExternal ? (process.env.LAVALINK_SECURE !== 'false') : false,
+        nodeType: isExternal ? undefined : NodeType.NodeLink,
+        retryAmount: 10,
+        retryDelay: 5000,
       },
     ],
     client: {
@@ -26,6 +37,18 @@ function init(client) {
     },
     autoSkip: true,
     queueOptions: { maxPreviousTracks: 0 },
+  });
+
+  lavalink.nodeManager.on('connect', (node) => {
+    console.log(`[Lavalink] Node "${node.options.id}" connected (${node.options.host}:${node.options.port})`);
+  });
+
+  lavalink.nodeManager.on('error', (node, error) => {
+    console.error(`[Lavalink] Node "${node.options.id}" error:`, error.message);
+  });
+
+  lavalink.nodeManager.on('disconnect', (node) => {
+    console.warn(`[Lavalink] Node "${node.options.id}" disconnected`);
   });
 
   lavalink.on('trackStart', (player, track) => {
@@ -68,11 +91,11 @@ function init(client) {
   });
 
   lavalink.init(client.user.id);
+  if (!isExternal) {
+    lavalink.utils.SourcesRecord = NodeLinkDefaultSources;
+  }
+  console.log(`[Lavalink] Target: ${isExternal ? process.env.LAVALINK_HOST + ':' + (process.env.LAVALINK_PORT || '443') : 'localhost:2333 (NodeLink)'}`);
   return lavalink;
 }
 
-function getLavalink() {
-  return lavalink;
-}
-
-module.exports = { init, getLavalink };
+module.exports = { init, getLavalink: () => lavalink, isConnected };
