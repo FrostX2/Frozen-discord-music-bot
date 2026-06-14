@@ -67,15 +67,16 @@ require ("./distube/index");
 
 client.musicSetup = {};
 
-// Pre-download yt-dlp so first play is instant
-const player = require("./player");
-player.ensureYtDlp().catch(() => {});
-
-
-
 client.handleEvents();
 client.handleComponents();
 client.handleCommands();
+
+// Initialize Lavalink when client is ready
+client.once('ready', () => {
+  const lavalink = require('./lavalink');
+  lavalink.init(client);
+  console.log('Lavalink initialized');
+});
 
 // Render port binding
 const http = require("http");
