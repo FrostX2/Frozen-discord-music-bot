@@ -20,6 +20,16 @@ function writeConfig() {
   cfg = cfg.replace(/level:\s*'[^']*'/g, `level: '${logLevel}'`);
   cfg = cfg.replace(/enabled:\s*true,?\s*\/\/\s*active cluster/g, 'enabled: false, // active cluster');
 
+  // YouTube TV refresh token for geo-bypass
+  const ytTvToken = process.env.YOUTUBE_TV_REFRESH_TOKEN;
+  if (ytTvToken) {
+    cfg = cfg.replace(/refreshToken:\s*\[[^\]]*\]/g, `refreshToken: ['${ytTvToken}']`);
+  }
+  // Enable YouTube OAuth token retrieval
+  cfg = cfg.replace(/getOAuthToken:\s*false/g, `getOAuthToken: true`);
+  // Prepend 'Android' to playback clients (most permissive, often works when others don't)
+  cfg = cfg.replace(/playback:\s*\[([^\]]+)\]/g, "playback: ['Android', $1]");
+
   fs.writeFileSync(CONFIG_DST, cfg);
 }
 
