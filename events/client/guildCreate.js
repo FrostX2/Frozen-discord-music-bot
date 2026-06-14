@@ -14,22 +14,32 @@ module.exports = {
           type: ChannelType.GuildCategory,
         });
       }
-      const channel = await guild.channels.create({
-        name: channelName,
-        type: ChannelType.GuildText,
-        parent: category.id,
-        topic: "Paste a song name or link here to play music",
-        permissionOverwrites: [
-          {
-            id: guild.id,
-            allow: [PermissionsBitField.Flags.ViewChannel, PermissionsBitField.Flags.SendMessages, PermissionsBitField.Flags.ReadMessageHistory],
-          },
-        ],
-      });
 
-      // also create the voice channel
-      const voiceExists = guild.channels.cache.find(c => c.name === voiceName && c.type === ChannelType.GuildVoice);
-      if (!voiceExists) {
+      let channel = guild.channels.cache.find(c => c.name === channelName && c.type === ChannelType.GuildText);
+      if (!channel) {
+        channel = await guild.channels.create({
+          name: channelName,
+          type: ChannelType.GuildText,
+          parent: category.id,
+          topic: "Paste a song name or link here to play music",
+          permissionOverwrites: [
+            {
+              id: guild.id,
+              allow: [PermissionsBitField.Flags.ViewChannel, PermissionsBitField.Flags.SendMessages, PermissionsBitField.Flags.ReadMessageHistory],
+            },
+          ],
+        });
+
+        const embed = new EmbedBuilder()
+          .setColor(client.config.colorDefault || "#00FF00")
+          .setTitle("FuriMusic")
+          .setDescription("Paste the song name or link here\n\n**Support:** YouTube, Spotify, SoundCloud")
+          .setFooter({ text: "FuriMusic — Paste a song name or link to play" });
+        await channel.send({ embeds: [embed] });
+      }
+
+      let voice = guild.channels.cache.find(c => c.name === voiceName && c.type === ChannelType.GuildVoice);
+      if (!voice) {
         await guild.channels.create({
           name: voiceName,
           type: ChannelType.GuildVoice,
@@ -37,20 +47,12 @@ module.exports = {
         });
       }
 
-      const embed = new EmbedBuilder()
-        .setColor(client.config.colorDefault || "#00FF00")
-        .setTitle("FuriMusic")
-        .setDescription("Paste the song name or link here\n\n**Support:** YouTube, Spotify, SoundCloud")
-        .setFooter({ text: "FuriMusic — Paste a song name or link to play" });
-
-      await channel.send({ embeds: [embed] });
-
       if (!client.musicSetup) client.musicSetup = {};
-      client.musicSetup[guild.id] = channel.id;
+      if (channel) client.musicSetup[guild.id] = channel.id;
 
-      console.log(`Created music channel in ${guild.name} (${guild.id})`);
+      console.log(`Setup music channels in ${guild.name} (${guild.id})`);
     } catch (err) {
-      console.error(`Failed to create music channel in ${guild.name}:`, err.message);
+      console.error(`Failed to setup music channels in ${guild.name}:`, err.message);
     }
   },
 };

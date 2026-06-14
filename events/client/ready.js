@@ -6,20 +6,31 @@ async function ensureMusicChannels(client) {
   const voiceName = '🔊┊𝓿𝓸𝓲𝓬𝓮';
   const categoryName = '🎵┊𝓶𝓾𝓼𝓲𝓬';
   for (const guild of client.guilds.cache.values()) {
+    // Ensure category exists
+    let category;
+    try {
+      const channels = await guild.channels.fetch();
+      category = channels.find(c => c.name === categoryName && c.type === ChannelType.GuildCategory);
+    } catch {}
+    if (!category) {
+      try {
+        category = await guild.channels.create({
+          name: categoryName,
+          type: ChannelType.GuildCategory,
+        });
+      } catch (err) {
+        console.error(`Failed to create category in ${guild.name}:`, err.message);
+      }
+    }
+
+    // Ensure text channel exists
     let channel;
     try {
       const channels = await guild.channels.fetch();
       channel = channels.find(c => c.name === channelName && c.type === ChannelType.GuildText);
     } catch {}
-    if (!channel) {
+    if (!channel && category) {
       try {
-        let category = guild.channels.cache.find(c => c.name === categoryName && c.type === ChannelType.GuildCategory);
-        if (!category) {
-          category = await guild.channels.create({
-            name: categoryName,
-            type: ChannelType.GuildCategory,
-          });
-        }
         channel = await guild.channels.create({
           name: channelName,
           type: ChannelType.GuildText,
@@ -30,15 +41,6 @@ async function ensureMusicChannels(client) {
             allow: [PermissionsBitField.Flags.ViewChannel, PermissionsBitField.Flags.SendMessages, PermissionsBitField.Flags.ReadMessageHistory],
           }],
         });
-        // also create the voice channel
-        const voiceExists = guild.channels.cache.find(c => c.name === voiceName && c.type === ChannelType.GuildVoice);
-        if (!voiceExists) {
-          await guild.channels.create({
-            name: voiceName,
-            type: ChannelType.GuildVoice,
-            parent: category.id,
-          });
-        }
         const embed = new EmbedBuilder()
           .setColor(client.config.colorDefault || "#00FF00")
           .setTitle("FuriMusic")
@@ -46,11 +48,29 @@ async function ensureMusicChannels(client) {
           .setFooter({ text: "FuriMusic — Paste a song name or link to play" });
         await channel.send({ embeds: [embed] });
       } catch (err) {
-        console.error(`Failed to create music channel in ${guild.name}:`, err.message);
-        continue;
+        console.error(`Failed to create text channel in ${guild.name}:`, err.message);
       }
     }
-    setup[guild.id] = channel.id;
+
+    // Ensure voice channel exists
+    let voice;
+    try {
+      const channels = await guild.channels.fetch();
+      voice = channels.find(c => c.name === voiceName && c.type === ChannelType.GuildVoice);
+    } catch {}
+    if (!voice && category) {
+      try {
+        await guild.channels.create({
+          name: voiceName,
+          type: ChannelType.GuildVoice,
+          parent: category.id,
+        });
+      } catch (err) {
+        console.error(`Failed to create voice channel in ${guild.name}:`, err.message);
+      }
+    }
+
+    if (channel) setup[guild.id] = channel.id;
   }
   client.musicSetup = setup;
 }
