@@ -78,6 +78,26 @@ client.once('ready', () => {
   const lavalink = require('./lavalink');
   lavalink.init(client);
   console.log('Lavalink initialized');
+
+  // Auto-setup "furimusic" channel in every guild
+  client.guilds.cache.forEach(async (guild) => {
+    try {
+      let channel = guild.channels.cache.find(
+        c => c.type === 0 && c.name.toLowerCase() === 'furimusic'
+      );
+      if (!channel) {
+        channel = await guild.channels.create({
+          name: 'furimusic',
+          type: 0,
+          topic: 'Music commands — type a song name or URL to play',
+        });
+        console.log(`[Setup] Created #furimusic in ${guild.name}`);
+      }
+      client.musicSetup[guild.id] = channel.id;
+    } catch (err) {
+      console.warn(`[Setup] Could not setup furimusic in ${guild.name}: ${err.message}`);
+    }
+  });
 });
 
 // Render port binding

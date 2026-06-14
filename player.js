@@ -1,5 +1,3 @@
-const { EmbedBuilder } = require('discord.js');
-
 const queues = new Map();
 
 function formatDuration(ms) {
@@ -20,8 +18,7 @@ function buildSong(track, member) {
     durationInSec: Math.floor(track.info.duration / 1000),
     formattedDuration: formatDuration(track.info.duration),
     thumbnail: track.info.artworkUrl || null,
-    views: track.info.sourceName === 'youtube' ? (track.info?.sourceName?.views || 0) : 0,
-    uploader: { name: track.info.author || "Unknown", url: track.info.authorUrl || "" },
+    uploader: { name: track.info.author || "Unknown" },
     user: member?.user?.tag || member?.tag || "Unknown",
   };
 }
@@ -140,10 +137,6 @@ module.exports = {
     if (queue.lavalinkPlayer) queue.lavalinkPlayer.setRepeatMode(loop ? 'queue' : 'off');
   },
 
-  getQueue(guildId) {
-    return queues.get(guildId);
-  },
-
   previous(guildId) {
     const queue = getQueue(guildId);
     if (queue.songs.length > 1) {
@@ -154,10 +147,9 @@ module.exports = {
 
   remove(guildId, id) {
     const queue = getQueue(guildId);
-    if (id > 0 && id <= queue.songs.length) {
-      const song = queue.songs.splice(id - 1, 1)[0];
-      return song;
-    }
+    if (id < 1 || id > queue.songs.length) throw new Error(`Invalid song ID ${id} — queue has ${queue.songs.length} songs`);
+    const song = queue.songs.splice(id - 1, 1)[0];
+    return song;
   },
 
   jump(guildId, id) {

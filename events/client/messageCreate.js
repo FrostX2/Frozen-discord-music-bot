@@ -130,7 +130,7 @@ module.exports = {
     const voiceChannel = message.member?.voice?.channel;
     if (!voiceChannel) return;
 
-    const urlMatch = message.content.match(/(https?:\/\/)?(www\.)?(youtube\.com|youtu\.be)\/\S+/i);
+    const urlMatch = message.content.match(/https?:\/\/\S+/i);
     const query = urlMatch ? urlMatch[0] : message.content.trim();
 
     try {
