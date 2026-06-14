@@ -75,7 +75,11 @@ function init(client) {
   });
 
   lavalink.on('trackError', (player, track, error) => {
-    console.error(`Track error on ${player.guildId}:`, error.message);
+    console.error(`[Lavalink] trackError on ${player.guildId}:`, error?.message || error);
+  });
+
+  lavalink.on('trackStuck', (player, track, threshold) => {
+    console.warn(`[Lavalink] trackStuck on ${player.guildId}:`, track?.info?.title, threshold);
   });
 
   lavalink.on('playerDisconnect', (player) => {
@@ -94,6 +98,14 @@ function init(client) {
     if (queue) {
       queue.lavalinkPlayer = null;
     }
+  });
+
+  // Forward Discord voice gateway events to lavalink-client
+  client.ws?.on('VOICE_SERVER_UPDATE', (data, shardId) => {
+    lavalink.handleVoiceUpdate({ t: 'VOICE_SERVER_UPDATE', d: data });
+  });
+  client.ws?.on('VOICE_STATE_UPDATE', (data, shardId) => {
+    lavalink.handleVoiceUpdate({ t: 'VOICE_STATE_UPDATE', d: data });
   });
 
   lavalink.init(client.user.id);
