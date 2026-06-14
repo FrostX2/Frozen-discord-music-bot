@@ -79,23 +79,33 @@ client.once('ready', () => {
   lavalink.init(client);
   console.log('Lavalink initialized');
 
-  // Auto-setup "furimusic" channel in every guild
+  const names = [
+    '🎵│music', '🎶│tunes', 'song-requests', '🎧│listen',
+    'jam-session', '🎼│melody', 'beat-zone', 'frequency',
+    'groove-station', 'the-dj-booth', 'vinyl-only',
+    '🔊│sounds', 'rhythm-room', 'playlist-palace',
+    'mood-booster', 'ear-candy',
+  ];
+
   client.guilds.cache.forEach(async (guild) => {
     try {
-      let channel = guild.channels.cache.find(
-        c => c.type === 0 && c.name.toLowerCase() === 'furimusic'
+      const existing = guild.channels.cache.find(
+        c => c.type === 0 && names.includes(c.name.toLowerCase())
       );
-      if (!channel) {
-        channel = await guild.channels.create({
-          name: 'furimusic',
-          type: 0,
-          topic: 'Music commands — type a song name or URL to play',
-        });
-        console.log(`[Setup] Created #furimusic in ${guild.name}`);
+      if (existing) {
+        client.musicSetup[guild.id] = existing.id;
+        return;
       }
+      const name = names[Math.floor(Math.random() * names.length)];
+      const channel = await guild.channels.create({
+        name,
+        type: 0,
+        topic: 'Music commands — type a song name or URL to play',
+      });
+      console.log(`[Setup] Created #${channel.name} in ${guild.name}`);
       client.musicSetup[guild.id] = channel.id;
     } catch (err) {
-      console.warn(`[Setup] Could not setup furimusic in ${guild.name}: ${err.message}`);
+      console.warn(`[Setup] Could not setup music channel in ${guild.name}: ${err.message}`);
     }
   });
 });
