@@ -78,30 +78,6 @@ client.once('ready', () => {
   const lavalink = require('./lavalink');
   lavalink.init(client);
   console.log('Lavalink initialized');
-
-  const channelName = '🎵┊𝓯𝓾𝓻𝓲𝓶𝓾𝓼𝓲𝓬';
-  const channelTopic = 'Paste a song name or link here to play music';
-
-  client.guilds.cache.forEach(async (guild) => {
-    try {
-      const existing = guild.channels.cache.find(
-        c => c.type === 0 && c.name.toLowerCase() === channelName.toLowerCase()
-      );
-      if (existing) {
-        client.musicSetup[guild.id] = existing.id;
-        return;
-      }
-      const channel = await guild.channels.create({
-        name: channelName,
-        type: 0,
-        topic: channelTopic,
-      });
-      console.log(`[Setup] Created #${channel.name} in ${guild.name}`);
-      client.musicSetup[guild.id] = channel.id;
-    } catch (err) {
-      console.warn(`[Setup] Could not setup music channel in ${guild.name}: ${err.message}`);
-    }
-  });
 });
 
 // Render port binding
