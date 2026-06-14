@@ -67,7 +67,7 @@ module.exports = {
     }
 
     const isUrl = query.match(/https?:\/\/\S+/i);
-    const result = await player.search({ query: isUrl ? query : query, source: isUrl ? undefined : 'ytsearch' }, member);
+    const result = await player.search({ query: isUrl ? query : query, source: isUrl ? undefined : 'ytmsearch' }, member);
     if (!result.tracks?.length) throw new Error(`No results for "${query}"`);
 
     const track = result.tracks[0];
@@ -76,7 +76,11 @@ module.exports = {
 
     player.queue.add(track);
     if (!player.playing && !player.paused) {
-      player.play();
+      try {
+        await player.play();
+      } catch (err) {
+        throw new Error(`Playback failed: ${err.message}`);
+      }
     }
 
     return song;

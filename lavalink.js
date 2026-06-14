@@ -32,7 +32,7 @@ function init(client) {
       client.guilds.cache.get(guildId)?.shard?.send(payload);
     },
     playerOptions: {
-      defaultSearchPlatform: 'ytsearch',
+      defaultSearchPlatform: 'ytmsearch',
       onEmptyQueue: { destroyAfterMs: 60000 },
     },
     autoSkip: true,
