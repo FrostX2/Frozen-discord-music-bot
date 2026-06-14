@@ -40,13 +40,16 @@ git clone https://github.com/FrostX2/Frozen-discord-music-bot.git
 cp .env.example .env
 ```
 
-3. **fill the thing it need like token or app id in .env**
+ > [!IMPORTANT]
+  > Make sure to edit `CLIENT_ID=` and `DISCORD_TOKEN=` in `.env` to your application in [**Discord Developer Portal**](https://discord.com/developers/applications).
 
-4. **start the server**
+3. **start the server**
 
 ```console
 node start.js
 ```
+> [!TIP]
+> Join our [Discord server](https://discord.gg/JH9e4vaFGd) if you have any questions or just want to chill with us!
 
 ## Contributing
 
