@@ -5,16 +5,31 @@ const path = require('path');
 const fs = require('fs');
 
 const NODELINK_SERVER_DIR = path.join(__dirname, 'nodelink', 'server');
-const CONFIG_SRC = path.join(__dirname, 'nodelink', 'config.js');
+const CONFIG_DEFAULT = path.join(NODELINK_SERVER_DIR, 'config.default.js');
 const CONFIG_DST = path.join(NODELINK_SERVER_DIR, 'config.js');
 
+function writeConfig() {
+  let cfg = fs.readFileSync(CONFIG_DEFAULT, 'utf-8');
+
+  const port = process.env.NODELINK_PORT || '2333';
+  const password = process.env.NODELINK_PASSWORD || 'youshallnotpass';
+  const logLevel = process.env.NODELINK_LOG_LEVEL || 'info';
+
+  cfg = cfg.replace(/port:\s*\d+,/g, `port: ${port},`);
+  cfg = cfg.replace(/password:\s*'[^']*'/g, `password: '${password}'`);
+  cfg = cfg.replace(/level:\s*'[^']*'/g, `level: '${logLevel}'`);
+  cfg = cfg.replace(/enabled:\s*true,?\s*\/\/\s*active cluster/g, 'enabled: false, // active cluster');
+
+  fs.writeFileSync(CONFIG_DST, cfg);
+}
+
 function startNodeLink() {
-  if (!fs.existsSync(path.join(NODELINK_SERVER_DIR, 'package.json'))) {
+  if (!fs.existsSync(CONFIG_DEFAULT)) {
     console.error('NodeLink not found. Run `node setup-nodelink.js` or set LAVALINK_HOST env var.');
     process.exit(1);
   }
 
-  fs.copyFileSync(CONFIG_SRC, CONFIG_DST);
+  writeConfig();
 
   const proc = spawn('node', [
     '--dns-result-order=ipv4first',
