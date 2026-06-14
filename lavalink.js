@@ -19,7 +19,7 @@ function init(client) {
         port: parseInt(process.env.LAVALINK_PORT || (isExternal ? '443' : '2333')),
         authorization: process.env.LAVALINK_PASSWORD || (isExternal ? 'BatuManaBisa' : 'youshallnotpass'),
         secure: isExternal ? (process.env.LAVALINK_SECURE !== 'false') : false,
-        nodeType: isExternal ? undefined : NodeType.NodeLink,
+        nodeType: isExternal ? NodeType.Lavalink : NodeType.NodeLink,
         retryAmount: 10,
         retryDelay: 5000,
       },
