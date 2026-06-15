@@ -73,8 +73,17 @@ module.exports = {
     }
 
     const isUrl = query.match(/https?:\/\/\S+/i);
-    const result = await player.search({ query: isUrl ? query : query, source: isUrl ? undefined : 'ytmsearch' }, member);
-    if (!result.tracks?.length) throw new Error(`No results for "${query}"`);
+    let result;
+    if (isUrl) {
+      result = await player.search({ query, source: undefined }, member);
+    } else {
+      const sources = ['ytmsearch', 'ytsearch', 'scsearch'];
+      for (const source of sources) {
+        result = await player.search({ query, source }, member);
+        if (result.tracks?.length) break;
+      }
+    }
+    if (!result?.tracks?.length) throw new Error(`No results for "${query}"`);
 
     const tracks = result.tracks;
     const songs = tracks.map(t => buildSong(t, member));
