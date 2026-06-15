@@ -20,6 +20,7 @@ function buildSong(track, member) {
     thumbnail: track.info.artworkUrl || null,
     uploader: { name: track.info.author || "Unknown" },
     user: member?.user?.tag || member?.tag || "Unknown",
+    member,
   };
 }
 
@@ -44,6 +45,8 @@ module.exports = {
     const guildId = voiceChannel.guildId;
     const queue = getQueue(guildId);
     queue.textChannel = textChannel;
+
+    require('./lavalink').clearLeaveTimer(guildId);
 
     const lavalink = require('./lavalink').getLavalink();
     const { isConnected } = require('./lavalink');

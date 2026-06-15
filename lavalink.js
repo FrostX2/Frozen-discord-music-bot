@@ -10,6 +10,52 @@ function fmt(ms) {
 
 let lavalink = null;
 let botClient = null;
+const leaveTimers = new Map();
+
+function clearLeaveTimer(guildId) {
+  const timer = leaveTimers.get(guildId);
+  if (timer) {
+    clearTimeout(timer);
+    leaveTimers.delete(guildId);
+  }
+}
+
+function scheduleLeave(guildId) {
+  clearLeaveTimer(guildId);
+
+  const player = lavalink?.getPlayer(guildId);
+  if (!player) return;
+
+  const guild = botClient?.guilds.cache.get(guildId);
+  if (!guild) return;
+
+  const voiceChannel = guild.channels.cache.get(player.voiceChannelId);
+
+  if (!voiceChannel || voiceChannel.members.filter(m => !m.user.bot).size === 0) {
+    console.log(`[Lavalink] No members in VC for ${guildId}, leaving instantly`);
+    player.destroy();
+    const { getQueue } = require('./player');
+    const q = getQueue(guildId);
+    q.current = null;
+    q.songs = [];
+    q.lavalinkPlayer = null;
+    return;
+  }
+
+  console.log(`[Lavalink] Queue empty for ${guildId}, leaving in 2 minutes`);
+  const timer = setTimeout(() => {
+    console.log(`[Lavalink] Leaving ${guildId} due to inactivity`);
+    player.destroy();
+    const { getQueue } = require('./player');
+    const q = getQueue(guildId);
+    q.current = null;
+    q.songs = [];
+    q.lavalinkPlayer = null;
+    leaveTimers.delete(guildId);
+  }, 120000);
+
+  leaveTimers.set(guildId, timer);
+}
 
 function isConnected() {
   if (!lavalink) return false;
@@ -17,7 +63,7 @@ function isConnected() {
   return node?.connected === true;
 }
 
-function init(client) {
+async function init(client) {
   botClient = client;
   const isExternal = !!process.env.LAVALINK_HOST;
 
@@ -43,7 +89,7 @@ function init(client) {
     },
     playerOptions: {
       defaultSearchPlatform: 'ytmsearch',
-      onEmptyQueue: { destroyAfterMs: 60000 },
+      onEmptyQueue: { destroyAfterMs: null },
     },
     autoSkip: true,
     queueOptions: { maxPreviousTracks: 0 },
@@ -63,6 +109,7 @@ function init(client) {
 
   lavalink.on('trackStart', (player, track) => {
     console.log(`[Lavalink] trackStart: ${track.info.title} (${player.guildId})`);
+    clearLeaveTimer(player.guildId);
     const playerMod = require('./player');
     const queue = playerMod.getQueue(player.guildId);
     if (queue) {
@@ -86,7 +133,7 @@ function init(client) {
             { name: "Status", value: status, inline: false },
             { name: "Duration", value: `${fmt(player.position)} / ${fmt(track.info.duration)}`, inline: true },
             { name: "Author", value: track.info.author || "Unknown", inline: true },
-            { name: "Request by", value: queue?.current?.member?.toString() || "Unknown", inline: true },
+            { name: "Request by", value: track.userData?.requester?.toString() || queue?.current?.member?.toString() || "Unknown", inline: true },
           ])
           .setImage(track.info.artworkUrl)
           .setFooter({ text: `${queue?.songs?.length || 0} songs in queue` });
@@ -112,6 +159,9 @@ function init(client) {
       queue.songs.shift();
       queue.current = queue.songs[0] || null;
     }
+    if (!player.queue.tracks.length && (!player.repeatMode || player.repeatMode === 'off')) {
+      scheduleLeave(player.guildId);
+    }
   });
 
   lavalink.on('trackError', (player, track, error) => {
@@ -123,6 +173,7 @@ function init(client) {
   });
 
   lavalink.on('playerDisconnect', (player) => {
+    clearLeaveTimer(player.guildId);
     const playerMod = require('./player');
     const queue = playerMod.getQueue(player.guildId);
     if (queue) {
@@ -133,6 +184,7 @@ function init(client) {
   });
 
   lavalink.on('playerDestroy', (player) => {
+    clearLeaveTimer(player.guildId);
     const playerMod = require('./player');
     const queue = playerMod.getQueue(player.guildId);
     if (queue) {
@@ -148,7 +200,33 @@ function init(client) {
     lavalink.utils.SourcesRecord = NodeLinkDefaultSources;
   }
   console.log(`[Lavalink] Target: ${isExternal ? process.env.LAVALINK_HOST + ':' + (process.env.LAVALINK_PORT || '443') : 'localhost:2333 (NodeLink)'}`);
+
+  const waitForNode = process.env.WAIT_FOR_NODE !== 'false';
+  if (waitForNode) {
+    console.log('[Lavalink] Waiting for node "main" to connect...');
+    await new Promise((resolve) => {
+      const timeout = setTimeout(() => {
+        console.warn('[Lavalink] Timeout waiting for node connection, continuing anyway');
+        resolve();
+      }, 30000);
+
+      const cleanup = () => {
+        clearTimeout(timeout);
+        resolve();
+      };
+
+      lavalink.nodeManager.on('connect', (node) => {
+        if (node.options.id === 'main') cleanup();
+      });
+      lavalink.nodeManager.on('ready', (node) => {
+        if (node.options.id === 'main') cleanup();
+      });
+
+      if (isConnected()) cleanup();
+    });
+  }
+
   return lavalink;
 }
 
-module.exports = { init, getLavalink: () => lavalink, isConnected };
+module.exports = { init, getLavalink: () => lavalink, isConnected, clearLeaveTimer, scheduleLeave };

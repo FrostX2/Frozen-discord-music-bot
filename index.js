@@ -74,9 +74,9 @@ client.handleComponents();
 client.handleCommands();
 
 // Initialize Lavalink when client is ready
-client.once('ready', () => {
+client.once('ready', async () => {
   const lavalink = require('./lavalink');
-  lavalink.init(client);
+  await lavalink.init(client);
   console.log('Lavalink initialized');
 });
 
