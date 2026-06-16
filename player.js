@@ -89,7 +89,11 @@ module.exports = {
     }
     if (!result?.tracks?.length) throw new Error(`No results for "${query}"`);
 
-    const tracks = result.tracks;
+    let tracks = result.tracks;
+    // For search results (not playlists), only take the top result
+    if (!result.playlist) {
+      tracks = [tracks[0]];
+    }
     const songs = tracks.map(t => buildSong(t, member));
     queue.songs.push(...songs);
     db.saveQueue(guildId, queue.songs);
