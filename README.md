@@ -66,7 +66,7 @@ node start.js
 | `!remove` | `/remove` | Remove song from queue |
 | `!back` | `/back` | Previous song |
 | `!filter` | `/filter` | Apply audio filter |
-| `!help` | — | Show this help |
+| `!help` | `/help` | Show this help |
 
 ## License
 
