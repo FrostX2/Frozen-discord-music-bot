@@ -1,11 +1,10 @@
-const { EmbedBuilder } = require("discord.js");
-const { SlashCommandBuilder } = require("@discordjs/builders");
+const { EmbedBuilder, SlashCommandBuilder } = require("discord.js");
 
 module.exports = {
     category: "Music",
     data: new SlashCommandBuilder()
-        .setName("stop")
-        .setDescription("Stop playing music"),
+        .setName("s")
+        .setDescription("Stop playing music (alias for /stop)"),
 
     async execute(interaction, client) {
         const voiceChannel = interaction.member.voice.channel;

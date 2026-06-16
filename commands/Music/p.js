@@ -3,8 +3,8 @@ const { EmbedBuilder, SlashCommandBuilder } = require("discord.js");
 module.exports = {
   category: "Music",
   data: new SlashCommandBuilder()
-    .setName("play")
-    .setDescription("Play a song")
+    .setName("p")
+    .setDescription("Play a song (alias for /play)")
     .addStringOption((option) =>
       option
         .setName("keyword")

@@ -1,60 +1,73 @@
 ﻿# FuriMusic — NotFrost
-## It was the music bot
 
-Based on [This Repository](https://github.com/hongducdev/Music-Bot-Discord.js-v14)
+A Discord music bot with instant audio — supports YouTube, Spotify, YouTube Music, SoundCloud.
 
-Credit [Nguyễn Hồng Đức](https://github.com/hongducdev)
+## Features
 
-![LOC](https://tokei.rs/b1/github/FrostX2/Frozen-discord-music-bot?category=code)
+- Auto-creates styled music channels per server
+- Search fallback: YouTube Music → YouTube → SoundCloud
+- `/play`, `/p` — Play songs or playlists (URL or name)
+- `/stop`, `/s` — Stop and leave
+- `/volume`, `/vol` — Adjust volume (0-200)
+- `/skip`, `/pause`, `/resume`, `/loop`, `/queue`, `/remove`, `/back`, `/filter`
+- Auto-leave: 2 minutes after queue ends, instantly if no one in voice
+- Now-playing embed with requester info
 
-![GitHub top language](https://img.shields.io/github/languages/top/FrostX2/Frozen-discord-music-bot?style=for-the-badge)
-![GitHub last commit](https://img.shields.io/github/last-commit/FrostX2/Frozen-discord-music-bot?style=for-the-badge)
-![GitHub](https://img.shields.io/github/license/FrostX2/Frozen-discord-music-bot?style=for-the-badge)
-[![Visits Badge](https://badges.pufler.dev/visits/FrostX2/Frozen-discord-music-bot?style=for-the-badge)](https://badges.pufler.dev)
+## Run Locally
 
-[![Readme Card](https://github-readme-stats.vercel.app/api/pin/?username=FrostX2&repo=Frozen-discord-music-bot&theme=dracula)](https://github.com/FrostX2/Frozen-discord-music-bot)
-
-### Requirement
-
-Before you begin, ensure you have the following installed:
-
-- [**Git**](https://git-scm.com/)
-- [**NodeJS**](https://nodejs.org/)
-- Basic knowledge of command line operations
-
-### Optional
-
-- Host website like [**Render**](https://render.com/)
-
-### Installation
-
-1. **Clone the repository**
-
+1. Clone and install:
 ```console
 git clone https://github.com/FrostX2/Frozen-discord-music-bot.git
+cd Frozen-discord-music-bot
+npm install --include=dev --ignore-scripts
 ```
 
-2. **Change the .env file**
-
+2. Copy and fill `.env`:
 ```console
 cp .env.example .env
 ```
+Edit `DISCORD_TOKEN` and `CLIENT_ID` with your bot credentials from [Discord Developer Portal](https://discord.com/developers/applications).
 
- > [!IMPORTANT]
-  > Make sure to edit `CLIENT_ID=` and `DISCORD_TOKEN=` in `.env` to your application in [**Discord Developer Portal**](https://discord.com/developers/applications).
-
-3. **start the server**
-
+3. Start:
 ```console
 node start.js
 ```
+
+## Deploy on Render
+
+1. Create a **Web Service** on Render, connect your GitHub repo
+2. Set:
+   - **Build Command**: `npm install --include=dev --ignore-scripts`
+   - **Start Command**: `node start.js`
+   - **Node Version**: `>=22.22.2`
+3. Add environment variables in Render dashboard:
+   - `DISCORD_TOKEN` — your bot token
+   - `CLIENT_ID` — your application ID
+   - `LAVALINK_HOST`, `LAVALINK_PORT`, `LAVALINK_PASSWORD`, `LAVALINK_SECURE` — optional external Lavalink
+   - `WAIT_FOR_NODE=false` — skip waiting for Lavalink node on startup
+4. Deploy — Render will build and start automatically
+
 > [!TIP]
-> Join our [Discord server](https://discord.gg/JH9e4vaFGd) if you have any questions or just want to chill with us!
+> For external Lavalink, set the env vars above. Without them, NodeLink runs locally alongside the bot.
 
-## Contributing
+## Commands
 
-If you want to contribute to the project, feel free to fork the repository and give credit to [original](https://github.com/hongducdev/Music-Bot-Discord.js-v14) repository. We are open to any suggestions and improvements.
+| Prefix | Slash | Description |
+|--------|-------|-------------|
+| `!play` / `!p` | `/play` `/p` | Play a song |
+| `!skip` | `/skip` | Skip current track |
+| `!stop` / `!s` | `/stop` `/s` | Stop and leave |
+| `!pause` | `/pause` | Pause playback |
+| `!resume` | `/resume` | Resume playback |
+| `!volume` / `!vol` | `/volume` `/vol` | Set volume (0-200) |
+| `!loop` | `/loop` | Toggle loop |
+| `!queue` | `/queue` | Show queue |
+| `!nowplaying` / `!np` | `/nowplaying` `/np` | Show current song |
+| `!remove` | `/remove` | Remove song from queue |
+| `!back` | `/back` | Previous song |
+| `!filter` | `/filter` | Apply audio filter |
+| `!help` | — | Show this help |
 
-## Disclaimer
+## License
 
-This reposity based on this [Original](https://github.com/hongducdev/Music-Bot-Discord.js-v14) repository. We forked and developed more from Original
+Based on [hongducdev/Music-Bot-Discord.js-v14](https://github.com/hongducdev/Music-Bot-Discord.js-v14)

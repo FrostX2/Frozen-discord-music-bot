@@ -1,13 +1,21 @@
-const { EmbedBuilder } = require("discord.js");
-const { SlashCommandBuilder } = require("@discordjs/builders");
+const { EmbedBuilder, SlashCommandBuilder } = require("discord.js");
 
 module.exports = {
     category: "Music",
     data: new SlashCommandBuilder()
-        .setName("stop")
-        .setDescription("Stop playing music"),
+        .setName("vol")
+        .setDescription("Change volume (alias for /volume)")
+        .addIntegerOption((option) =>
+            option
+                .setName("volume")
+                .setDescription("Volume level (0-200)")
+                .setMaxValue(200)
+                .setMinValue(0)
+                .setRequired(true)
+        ),
 
     async execute(interaction, client) {
+        const volume = interaction.options.getInteger("volume");
         const voiceChannel = interaction.member.voice.channel;
         if (!voiceChannel) {
             return interaction.reply({
@@ -31,12 +39,12 @@ module.exports = {
             });
         }
 
-        client.player.stop(interaction.guildId);
+        client.player.setVolume(interaction.guildId, volume);
         interaction.reply({
             embeds: [
                 new EmbedBuilder()
                     .setColor(client.config.colorDefault)
-                    .setDescription("Stopped playing music!"),
+                    .setDescription(`Volume set to ${volume}%`),
             ],
         });
     },

@@ -119,12 +119,30 @@ const textHandlers = {
     }
   },
   async help(client, message) {
-    const commands = Object.keys(textHandlers).sort();
-    message.reply({ embeds: [new EmbedBuilder().setColor(client.config.colorDefault).setDescription(`Commands: ${commands.map(c => `\`${client.config.prefix}${c}\``).join(", ")}`)] });
+    const prefix = client.config.prefix;
+    const desc = [
+      `**Music**`,
+      `\`${prefix}play\` / \`${prefix}p\` — Play a song`,
+      `\`${prefix}skip\` — Skip current song`,
+      `\`${prefix}stop\` / \`${prefix}s\` — Stop and leave`,
+      `\`${prefix}pause\` — Pause`,
+      `\`${prefix}resume\` — Resume`,
+      `\`${prefix}volume\` / \`${prefix}vol\` — Set volume (0-200)`,
+      `\`${prefix}loop\` — Toggle loop`,
+      `\`${prefix}queue\` — Show queue`,
+      `\`${prefix}nowplaying\` / \`${prefix}np\` — Current song`,
+      `\`${prefix}remove\` — Remove song from queue`,
+      `\`${prefix}back\` — Previous song`,
+      `\`${prefix}filter\` — Apply audio filter`,
+    ].join('\n');
+    message.reply({ embeds: [new EmbedBuilder().setColor(client.config.colorDefault).setDescription(desc)] });
   },
 };
 
 textHandlers.np = textHandlers.nowplaying;
+textHandlers.p = textHandlers.play;
+textHandlers.vol = textHandlers.volume;
+textHandlers.s = textHandlers.stop;
 
 module.exports = {
   name: "messageCreate",
