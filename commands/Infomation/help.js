@@ -1,17 +1,15 @@
-const { EmbedBuilder, PermissionsBitField } = require("discord.js");
+const { EmbedBuilder } = require("discord.js");
 const { SlashCommandBuilder } = require("@discordjs/builders");
-const { stripIndent } = require("common-tags");
-const { execute } = require("../Music/loop");
 
 module.exports = {
     category: "Information",
     data: new SlashCommandBuilder()
         .setName("help")
-        .setDescription("Hiển thị danh sách các command có trong bot")
+        .setDescription("Show all available commands")
         .addStringOption((option) =>
             option
                 .setName("command")
-                .setDescription("Tên command")
+                .setDescription("Command name")
                 .setRequired(false)
                 .setAutocomplete(true)
         ),
@@ -39,11 +37,11 @@ module.exports = {
 
 const getAll = (client, interaction) => {
     const embed = new EmbedBuilder()
-        .setAuthor({ name: `Danh sách các lệnh`, iconURL: client.user.displayAvatarURL() })
+        .setAuthor({ name: `Command List`, iconURL: client.user.displayAvatarURL() })
         .setColor(client.config.colorDefault)
-        .setDescription(`> Tổng số lượng lệnh: ${client.commands.size}`)
+        .setDescription(`> Total commands: ${client.commands.size}`)
         .setThumbnail(client.user.displayAvatarURL())
-        .setFooter({ text: ` Sửa dụng /help + tên lệnh để xem chi tiết!` })
+        .setFooter({ text: `Use /help + command name for details` });
 
     const categories = client.commands
         .map((c) => c.category)
@@ -51,7 +49,7 @@ const getAll = (client, interaction) => {
     categories.forEach((category) => {
         const commands = client.commands.filter((c) => c.category === category);
         embed.addFields({
-            name: `> ${category}[${commands.size}] `,
+            name: `> ${category}[${commands.size}]`,
             value: commands.map((c) => `\`\\${c.data.name}\``).join(" "),
         });
     });
@@ -65,27 +63,27 @@ const getCommand = (client, interaction) => {
         (c) => c.data.name === command.value
     );
     if (!commandData) {
-        interaction.reply("Không tìm thấy command");
+        interaction.reply("Command not found");
         return;
     }
     const embed = new EmbedBuilder()
-        .setAuthor({ name: `Thông tin chi tiết về lệnh`, iconURL: client.user.displayAvatarURL() })
-        .setTitle(`Thông tin về command \`${command.value}\``)
+        .setAuthor({ name: `Command Details`, iconURL: client.user.displayAvatarURL() })
+        .setTitle(`Info about \`${command.value}\``)
         .setColor(client.config.colorDefault)
         .setThumbnail(client.user.displayAvatarURL())
         .addFields(
             {
-                name: "> Tên command",
+                name: "Name",
                 value: commandData.data.name,
                 inline: true,
             },
             {
-                name: "> Danh mục",
+                name: "Category",
                 value: commandData.category,
                 inline: true,
             },
             {
-                name: "> Mô tả",
+                name: "Description",
                 value: commandData.data.description,
                 inline: true,
             }
