@@ -30,6 +30,7 @@ function scheduleLeave(guildId) {
   if (!guild) return;
 
   const voiceChannel = guild.channels.cache.get(player.voiceChannelId);
+  const db = require('./db');
 
   if (!voiceChannel || voiceChannel.members.filter(m => !m.user.bot).size === 0) {
     console.log(`[Lavalink] No members in VC for ${guildId}, leaving instantly`);
@@ -39,6 +40,7 @@ function scheduleLeave(guildId) {
     q.current = null;
     q.songs = [];
     q.lavalinkPlayer = null;
+    db.clearQueue(guildId);
     return;
   }
 
@@ -51,6 +53,7 @@ function scheduleLeave(guildId) {
     q.current = null;
     q.songs = [];
     q.lavalinkPlayer = null;
+    db.clearQueue(guildId);
     leaveTimers.delete(guildId);
   }, 120000);
 
@@ -154,10 +157,12 @@ async function init(client) {
 
   lavalink.on('trackEnd', (player, track) => {
     const playerMod = require('./player');
+    const db = require('./db');
     const queue = playerMod.getQueue(player.guildId);
     if (queue) {
       queue.songs.shift();
       queue.current = queue.songs[0] || null;
+      db.saveQueue(player.guildId, queue.songs);
     }
     if (!player.queue.tracks.length && (!player.repeatMode || player.repeatMode === 'off')) {
       scheduleLeave(player.guildId);

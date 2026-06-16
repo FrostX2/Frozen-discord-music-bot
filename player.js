@@ -1,4 +1,5 @@
 const queues = new Map();
+const db = require('./db');
 
 function formatDuration(ms) {
   if (!ms) return "0:00";
@@ -91,6 +92,7 @@ module.exports = {
     const tracks = result.tracks;
     const songs = tracks.map(t => buildSong(t, member));
     queue.songs.push(...songs);
+    db.saveQueue(guildId, queue.songs);
 
     player.queue.add(tracks);
 
@@ -121,6 +123,7 @@ module.exports = {
   stop(guildId) {
     const queue = getQueue(guildId);
     queue.songs = [];
+    db.clearQueue(guildId);
     if (queue.lavalinkPlayer) queue.lavalinkPlayer.destroy();
     queue.lavalinkPlayer = null;
     queue.current = null;
@@ -153,6 +156,7 @@ module.exports = {
     const queue = getQueue(guildId);
     if (queue.songs.length > 1) {
       queue.songs.unshift(queue.songs.pop());
+      db.saveQueue(guildId, queue.songs);
       if (queue.lavalinkPlayer) queue.lavalinkPlayer.skip();
     }
   },
@@ -161,6 +165,7 @@ module.exports = {
     const queue = getQueue(guildId);
     if (id < 1 || id > queue.songs.length) throw new Error(`Invalid song ID ${id} — queue has ${queue.songs.length} songs`);
     const song = queue.songs.splice(id - 1, 1)[0];
+    db.saveQueue(guildId, queue.songs);
     return song;
   },
 
@@ -168,7 +173,17 @@ module.exports = {
     const queue = getQueue(guildId);
     if (id >= 0 && id < queue.songs.length) {
       queue.songs.splice(0, id);
+      db.saveQueue(guildId, queue.songs);
       if (queue.lavalinkPlayer) queue.lavalinkPlayer.skip();
     }
+  },
+
+  restoreQueue(guildId) {
+    const saved = db.loadQueue(guildId);
+    if (!saved) return null;
+    const queue = getQueue(guildId);
+    if (queue.songs.length) return null;
+    queue.songs.push(...saved);
+    return queue.songs;
   },
 };

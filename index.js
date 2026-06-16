@@ -65,7 +65,8 @@ for (const folder of functionFolders) {
         require(`./functions/${folder}/${file}`)(client);
 }
 
-require ("./distube/index");
+require( "./distube/index");
+require('./db').init();
 
 client.musicSetup = {};
 

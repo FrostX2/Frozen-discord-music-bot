@@ -82,6 +82,16 @@ module.exports = {
         console.log(`${client.user.tag} is ready!`);
         ensureMusicChannels(client);
 
+        // Restore saved queues from database
+        const { getQueue, restoreQueue } = require('../../player');
+        const db = require('../../db');
+        for (const guild of client.guilds.cache.values()) {
+            const saved = restoreQueue(guild.id);
+            if (saved && saved.length > 0) {
+                console.log(`[DB] Restored ${saved.length} songs in queue for ${guild.name} (${guild.id})`);
+            }
+        }
+
         let activities = [
                 `music with NotFrost`,
                 `${client.user.username}`,
