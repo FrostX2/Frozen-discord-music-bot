@@ -4,3 +4,4 @@ node_modules/
 yt-dlp
 ffmpeg
 nodelink/server/
+musicbot.db
