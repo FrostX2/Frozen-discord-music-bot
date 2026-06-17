@@ -1,73 +1,103 @@
-﻿# FuriMusic — NotFrost
+﻿<div align="center">
+  <img src="https://capsule-render.vercel.app/api?type=waving&color=gradient&height=120&section=header"/>
+  
+  # 🎵 FuriMusic — NotFrost
+  ### *Drop beats, not packets*
 
-A Discord music bot with instant audio — supports YouTube, Spotify, YouTube Music, SoundCloud.
+  [![LOC](https://tokei.rs/b1/github/FrostX2/Frozen-discord-music-bot?category=code)](https://github.com/FrostX2/Frozen-discord-music-bot)
+  [![GitHub top language](https://img.shields.io/github/languages/top/FrostX2/Frozen-discord-music-bot?style=for-the-badge&logo=javascript&color=ff69b4)](https://github.com/FrostX2/Frozen-discord-music-bot)
+  [![GitHub last commit](https://img.shields.io/github/last-commit/FrostX2/Frozen-discord-music-bot?style=for-the-badge&color=9cf)](https://github.com/FrostX2/Frozen-discord-music-bot)
+  [![GitHub license](https://img.shields.io/github/license/FrostX2/Frozen-discord-music-bot?style=for-the-badge&color=success)](https://github.com/FrostX2/Frozen-discord-music-bot)
+  [![Visits Badge](https://badges.pufler.dev/visits/FrostX2/Frozen-discord-music-bot?style=for-the-badge)](https://badges.pufler.dev)
+  
+  [![Readme Card](https://github-readme-stats.vercel.app/api/pin/?username=FrostX2&repo=Frozen-discord-music-bot&theme=dracula)](https://github.com/FrostX2/Frozen-discord-music-bot)
+</div>
 
-## Features
+---
 
-- Auto-creates styled music channels per server
-- Search fallback: YouTube Music → YouTube → SoundCloud
-- `/play`, `/p` — Play songs or playlists (URL or name)
-- `/stop`, `/s` — Stop and leave
-- `/volume`, `/vol` — Adjust volume (0-200)
-- `/skip`, `/pause`, `/resume`, `/loop`, `/queue`, `/remove`, `/back`, `/filter`
-- Auto-leave: 2 minutes after queue ends, instantly if no one in voice
-- Now-playing embed with requester info
+> **"My music bot has better rhythm than I do. Sad."** 🥁
 
-## Run Locally
+A **FuriMusic** with instant audio, supporting **YouTube**, **Spotify**, **YouTube Music**, and **SoundCloud**. Drop a link, type a name, and let the frozen vibes take over.
 
-1. Clone and install:
+---
+
+## 🎧 Features
+
+- 🎨 **Auto-styled music channels** — every server gets its own vibe
+- 🔍 **Smart search fallback** — YouTube Music → YouTube → SoundCloud
+- ⏯️ **Full playback control** — play, pause, skip, loop, queue, remove, go back
+- 🎛️ **Audio filters** — because vanilla gets boring
+- 🔊 **Volume control** — 0 to 200 (yes, you can go to 11)
+- 🕒 **Auto-leave** — 2 min after queue ends, instantly if everyone ghosts
+- 📦 **Now-playing embed** — with requester flex
+
+---
+
+## 🚀 Quick Start
+
+### 1. Clone & install
 ```console
 git clone https://github.com/FrostX2/Frozen-discord-music-bot.git
 cd Frozen-discord-music-bot
 npm install --include=dev --ignore-scripts
 ```
 
-2. Copy and fill `.env`:
+### 2. Fill in the blanks
 ```console
 cp .env.example .env
 ```
-Edit `DISCORD_TOKEN` and `CLIENT_ID` with your bot credentials from [Discord Developer Portal](https://discord.com/developers/applications).
+Edit `DISCORD_TOKEN` and `CLIENT_ID` from the [**Discord Developer Portal**](https://discord.com/developers/applications).
 
-3. Start:
+### 3. Let the music play 🎶
 ```console
 node start.js
 ```
 
-## Deploy on Render
+---
 
-1. Create a **Web Service** on Render, connect your GitHub repo
-2. Set:
-   - **Build Command**: `npm install --include=dev --ignore-scripts`
-   - **Start Command**: `node start.js`
-   - **Node Version**: `>=22.22.2`
-3. Add environment variables in Render dashboard:
-   - `DISCORD_TOKEN` — your bot token
-   - `CLIENT_ID` — your application ID
-   - `LAVALINK_HOST`, `LAVALINK_PORT`, `LAVALINK_PASSWORD`, `LAVALINK_SECURE` — optional external Lavalink
-   - `WAIT_FOR_NODE=false` — skip waiting for Lavalink node on startup
-4. Deploy — Render will build and start automatically
+## ☁️ Deploy on Render
+
+| Setting | Value |
+|---------|-------|
+| **Build Command** | `npm install --include=dev --ignore-scripts` |
+| **Start Command** | `node start.js` |
+| **Node Version** | `>=22.22.2` |
+
+**Environment Variables:**
+| Variable | Description |
+|----------|-------------|
+| `DISCORD_TOKEN` | Your bot token |
+| `CLIENT_ID` | Your app ID |
+| `LAVALINK_HOST` / `PORT` / `PASSWORD` / `SECURE` | External Lavalink (optional) |
+| `WAIT_FOR_NODE=false` | Skip waiting for Lavalink node |
 
 > [!TIP]
-> For external Lavalink, set the env vars above. Without them, NodeLink runs locally alongside the bot.
+> No Lavalink config? No problem — NodeLink runs locally alongside the bot.
 
-## Commands
+---
 
-| Prefix | Slash | Description |
-|--------|-------|-------------|
-| `!play` / `!p` | `/play` `/p` | Play a song |
-| `!skip` | `/skip` | Skip current track |
-| `!stop` / `!s` | `/stop` `/s` | Stop and leave |
-| `!pause` | `/pause` | Pause playback |
-| `!resume` | `/resume` | Resume playback |
-| `!volume` / `!vol` | `/volume` `/vol` | Set volume (0-200) |
-| `!loop` | `/loop` | Toggle loop |
-| `!queue` | `/queue` | Show queue |
-| `!nowplaying` / `!np` | `/nowplaying` `/np` | Show current song |
-| `!remove` | `/remove` | Remove song from queue |
-| `!back` | `/back` | Previous song |
-| `!filter` | `/filter` | Apply audio filter |
-| `!help` | `/help` | Show this help |
+## 🎮 Commands
 
-## License
+| Prefix | Slash | Does what? |
+|--------|-------|------------|
+| `!play` / `!p` | `/play` `/p` | Drop a track |
+| `!skip` | `/skip` | Next! |
+| `!stop` / `!s` | `/stop` `/s` | Shut it down |
+| `!pause` | `/pause` | Shhh... |
+| `!resume` | `/resume` | And we're back |
+| `!volume` / `!vol` | `/volume` `/vol` | Crank it (0-200) |
+| `!loop` | `/loop` | Forever and ever |
+| `!queue` | `/queue` | What's next? |
+| `!nowplaying` / `!np` | `/nowplaying` `/np` | What's this? |
+| `!remove` | `/remove` | Yeet that song |
+| `!back` | `/back` | Rewind time |
+| `!filter` | `/filter` | Spice it up |
+| `!help` | `/help` | You're looking at it |
 
-Based on [hongducdev/Music-Bot-Discord.js-v14](https://github.com/hongducdev/Music-Bot-Discord.js-v14)
+---
+
+## 📜 Credits
+
+Based on [hongducdev/Music-Bot-Discord.js-v14](https://github.com/hongducdev/Music-Bot-Discord.js-v14) — remixed and frozen by **NotFrost**.
+
+<img src="https://capsule-render.vercel.app/api?type=waving&color=gradient&height=120&section=footer"/>
