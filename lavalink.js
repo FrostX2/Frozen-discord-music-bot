@@ -1,11 +1,29 @@
 const { LavalinkManager, NodeType, NodeLinkDefaultSources } = require('lavalink-client');
 
+
 function fmt(ms) {
   if (!ms) return "0:00";
   const s = Math.floor(ms / 1000);
   const m = Math.floor(s / 60);
   const sec = s % 60;
   return `${m}:${String(sec).padStart(2, '0')}`;
+}
+
+function parsePort(rawPort, fallback, name) {
+  if (typeof rawPort === 'undefined' || rawPort === null || rawPort === '') {
+    return fallback;
+  }
+
+  const parsed = Number(rawPort);
+  if (!Number.isFinite(parsed) || Number.isNaN(parsed)) {
+    if (typeof rawPort === 'string' && /^https?:\/\//.test(rawPort)) {
+      const url = new URL(rawPort);
+      return url.port ? Number(url.port) : url.protocol === 'https:' ? 443 : 80;
+    }
+    throw new SyntaxError(`Invalid ${name}: expected a numeric port but got '${rawPort}'.`);
+  }
+
+  return Math.floor(parsed);
 }
 
 let lavalink = null;
@@ -69,34 +87,44 @@ function isConnected() {
 async function init(client) {
   botClient = client;
   const isExternal = !!process.env.LAVALINK_HOST;
+  const nodeHost = process.env.LAVALINK_HOST || 'localhost';
+  const nodePort = parsePort(process.env.LAVALINK_PORT, isExternal ? 443 : 2333, 'LAVALINK_PORT');
+  const nodeSecure = isExternal ? (process.env.LAVALINK_SECURE !== 'false') : false;
+  const nodeAuthorization = process.env.LAVALINK_PASSWORD || (isExternal ? 'BatuManaBisa' : 'youshallnotpass');
 
-  lavalink = new LavalinkManager({
-    nodes: [
-      {
-        id: 'main',
-        host: process.env.LAVALINK_HOST || 'localhost',
-        port: parseInt(process.env.LAVALINK_PORT || (isExternal ? '443' : '2333')),
-        authorization: process.env.LAVALINK_PASSWORD || (isExternal ? 'BatuManaBisa' : 'youshallnotpass'),
-        secure: isExternal ? (process.env.LAVALINK_SECURE !== 'false') : false,
-        nodeType: isExternal ? NodeType.Lavalink : NodeType.NodeLink,
-        retryAmount: 10,
-        retryDelay: 5000,
+  const nodeOptions = {
+    id: 'main',
+    host: nodeHost,
+    port: nodePort,
+    authorization: nodeAuthorization,
+    secure: nodeSecure,
+    nodeType: isExternal ? NodeType.Lavalink : NodeType.NodeLink,
+    retryAmount: 10,
+    retryDelay: 5000,
+  };
+
+  try {
+    console.log('[Lavalink] Node options:', nodeOptions);
+    lavalink = new LavalinkManager({
+      nodes: [nodeOptions],
+      client: {
+        id: client.user.id,
+        username: client.user.username,
       },
-    ],
-    client: {
-      id: client.user.id,
-      username: client.user.username,
-    },
-    sendToShard: (guildId, payload) => {
-      client.guilds.cache.get(guildId)?.shard?.send(payload);
-    },
-    playerOptions: {
-      defaultSearchPlatform: 'ytmsearch',
-      onEmptyQueue: { destroyAfterMs: null },
-    },
-    autoSkip: true,
-    queueOptions: { maxPreviousTracks: 0 },
-  });
+      sendToShard: (guildId, payload) => {
+        client.guilds.cache.get(guildId)?.shard?.send(payload);
+      },
+      playerOptions: {
+        defaultSearchPlatform: 'ytmsearch',
+        onEmptyQueue: { destroyAfterMs: null },
+      },
+      autoSkip: true,
+      queueOptions: { maxPreviousTracks: 0 },
+    });
+  } catch (err) {
+    console.error('[Lavalink] Failed to initialize LavalinkManager:', err?.message || err);
+    throw err;
+  }
 
   lavalink.nodeManager.on('connect', (node) => {
     console.log(`[Lavalink] Node "${node.options.id}" connected (${node.options.host}:${node.options.port})`);

@@ -1,8 +1,14 @@
-require('dotenv').config();
-
-const { spawn } = require('child_process');
 const path = require('path');
 const fs = require('fs');
+
+// Load environment variables from /etc/secret/.env or fallback to .env
+const secretEnvPath = '/etc/secret/.env';
+const localEnvPath = path.join(__dirname, '.env');
+const envPath = fs.existsSync(secretEnvPath) ? secretEnvPath : localEnvPath;
+
+require('dotenv').config({ path: envPath });
+
+const { spawn } = require('child_process');
 
 const NODELINK_SERVER_DIR = path.join(__dirname, 'nodelink', 'server');
 const CONFIG_DEFAULT = path.join(NODELINK_SERVER_DIR, 'config.default.js');

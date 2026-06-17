@@ -1,4 +1,12 @@
-require('dotenv').config();
+const path = require('path');
+const fs = require('fs');
+
+// Load environment variables from /etc/secret/.env or fallback to .env
+const secretEnvPath = '/etc/secret/.env';
+const localEnvPath = path.join(__dirname, '.env');
+const envPath = fs.existsSync(secretEnvPath) ? secretEnvPath : localEnvPath;
+
+require('dotenv').config({ path: envPath });
 
 const {
     Client,
@@ -6,7 +14,6 @@ const {
     GatewayIntentBits,
     Partials,
 } = require("discord.js");
-const fs = require("fs");
 let config;
 try { config = require("./config.json"); } catch { config = {}; }
 const token = process.env.DISCORD_TOKEN || config.token;
