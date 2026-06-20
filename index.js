@@ -85,7 +85,8 @@ client.handleCommands();
 client.once('ready', async () => {
   const lavalink = require('./lavalink');
   await lavalink.init(client);
-  console.log('Lavalink initialized');
+  lavalink.startAutoReconnect();
+  console.log('Lavalink initialized — auto-reconnect every 60 minutes');
 });
 
 // Render port binding

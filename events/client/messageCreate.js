@@ -134,6 +134,8 @@ const textHandlers = {
       `\`${prefix}remove\` — Remove song from queue`,
       `\`${prefix}back\` — Previous song`,
       `\`${prefix}filter\` — Apply audio filter`,
+      `\`${prefix}reconnect\` — Re-forge Lavalink connection`,
+      `\`${prefix}fixme\` — Diagnose and repair the bot`,
     ].join('\n');
     message.reply({ embeds: [new EmbedBuilder().setColor(client.config.colorDefault).setDescription(desc)] });
   },
@@ -143,6 +145,63 @@ textHandlers.np = textHandlers.nowplaying;
 textHandlers.p = textHandlers.play;
 textHandlers.vol = textHandlers.volume;
 textHandlers.s = textHandlers.stop;
+
+textHandlers.reconnect = async (client, message) => {
+  const lavalink = require('../../lavalink');
+  if (lavalink.isConnected()) {
+    return message.reply({ embeds: [new EmbedBuilder().setColor(client.config.colorDefault).setDescription("The bond to the music node pulses strong. No re-forging needed.")] });
+  }
+  const msg = await message.reply({ embeds: [new EmbedBuilder().setColor(client.config.colorDefault).setDescription("Re-forging the connection...")] });
+  try {
+    await lavalink.reconnect();
+    msg.edit({ embeds: [new EmbedBuilder().setColor(0x00FF00).setDescription("Connection restored. The music node answers once more.")] });
+  } catch (err) {
+    msg.edit({ embeds: [new EmbedBuilder().setColor(client.config.colorError).setDescription(`Re-forge failed: ${err.message}`)] });
+  }
+};
+
+textHandlers.fixme = async (client, message) => {
+  const lavalinkMod = require('../../lavalink');
+  const lavalinkOnline = lavalinkMod.isConnected();
+  const wsPing = client.ws.ping;
+  const guildCount = client.guilds.cache.size;
+  const voiceCount = client.guilds.cache.filter(g => g.members.me.voice.channelId).size;
+  const memUsage = (process.memoryUsage().heapUsed / 1024 / 1024).toFixed(1);
+  const uptime = Math.floor(process.uptime());
+
+  const lines = [
+    `Lavalink Node  :: ${lavalinkOnline ? "CONNECTED" : "DISCONNECTED"}`,
+    `Discord WS     :: ${wsPing}ms`,
+    `Guilds         :: ${guildCount}`,
+    `Active Voices  :: ${voiceCount}`,
+    `Memory         :: ${memUsage} MB`,
+    `Uptime         :: ${Math.floor(uptime / 86400)}d ${Math.floor((uptime % 86400) / 3600)}h ${Math.floor((uptime % 3600) / 60)}m`,
+  ];
+
+  let fixes = [];
+  if (!lavalinkOnline) {
+    try {
+      await lavalinkMod.reconnect();
+      fixes.push(lavalinkMod.isConnected() ? "Lavalink node revived" : "Could not revive Lavalink node");
+    } catch (err) {
+      fixes.push(`Lavalink revival failed: ${err.message}`);
+    }
+  }
+
+  if (lavalinkMod.isConnected()) {
+    for (const [, guild] of client.guilds.cache) {
+      if (guild.members.me.voice.channelId) {
+        const player = lavalinkMod.getLavalink()?.getPlayer(guild.id);
+        if (player && !player.voiceConnected) {
+          try { player.connect(); fixes.push(`Reconnected voice in ${guild.name}`); } catch {}
+        }
+      }
+    }
+  }
+
+  const desc = [`\`\`\`asciidoc`, ...lines, `\`\`\``, ...(fixes.length ? [`**Mending performed:**`, ...fixes.map(f => `> ${f}`)] : [])].join("\n");
+  message.reply({ embeds: [new EmbedBuilder().setColor(lavalinkMod.isConnected() ? client.config.colorDefault : client.config.colorError).setDescription(desc)] });
+};
 
 module.exports = {
   name: "messageCreate",

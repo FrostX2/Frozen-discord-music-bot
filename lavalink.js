@@ -29,6 +29,7 @@ function parsePort(rawPort, fallback, name) {
 let lavalink = null;
 let botClient = null;
 const leaveTimers = new Map();
+let autoReconnectTimer = null;
 
 function clearLeaveTimer(guildId) {
   const timer = leaveTimers.get(guildId);
@@ -82,6 +83,65 @@ function isConnected() {
   if (!lavalink) return false;
   const node = lavalink.nodeManager.nodes.get('main');
   return node?.connected === true;
+}
+
+async function reconnect() {
+  if (!lavalink) {
+    if (!botClient) throw new Error('No Lavalink instance or client available to reconnect');
+    await init(botClient);
+    return true;
+  }
+
+  const node = lavalink.nodeManager.nodes.get('main');
+  if (!node) {
+    console.warn('[Lavalink] No "main" node found, reinitializing...');
+    lavalink.nodeManager.removeAllListeners();
+    lavalink.removeAllListeners();
+    lavalink = null;
+    await init(botClient);
+    return true;
+  }
+
+  if (node.connected) {
+    console.log('[Lavalink] Already connected, nothing to do');
+    return true;
+  }
+
+  console.log('[Lavalink] Reconnecting node "main"...');
+  node.disconnect();
+  await new Promise(r => setTimeout(r, 2000));
+  node.connect();
+
+  for (let i = 0; i < 30; i++) {
+    if (node.connected) {
+      console.log('[Lavalink] Reconnect successful');
+      return true;
+    }
+    await new Promise(r => setTimeout(r, 1000));
+  }
+
+  console.warn('[Lavalink] Node reconnect timed out, reinitializing...');
+  lavalink.nodeManager.removeAllListeners();
+  lavalink.removeAllListeners();
+  lavalink = null;
+  await init(botClient);
+  return true;
+}
+
+function startAutoReconnect() {
+  if (autoReconnectTimer) clearInterval(autoReconnectTimer);
+  console.log('[Lavalink] Auto-reconnect scheduled every 60 minutes');
+  autoReconnectTimer = setInterval(async () => {
+    if (!isConnected()) {
+      console.log('[Lavalink] Auto-reconnect trigger: node is down, reconnecting...');
+      try {
+        await reconnect();
+        console.log('[Lavalink] Auto-reconnect completed');
+      } catch (err) {
+        console.error('[Lavalink] Auto-reconnect failed:', err.message);
+      }
+    }
+  }, 3600000);
 }
 
 async function init(client) {
@@ -262,4 +322,4 @@ async function init(client) {
   return lavalink;
 }
 
-module.exports = { init, getLavalink: () => lavalink, isConnected, clearLeaveTimer, scheduleLeave };
+module.exports = { init, getLavalink: () => lavalink, isConnected, clearLeaveTimer, scheduleLeave, reconnect, startAutoReconnect };
