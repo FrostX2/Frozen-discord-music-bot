@@ -142,58 +142,22 @@ const server = http.createServer((req, res) => {
     return res.end(JSON.stringify({ players: active, count: active.length }));
   }
 
-  if (req.url === '/api/player/skip' && req.method === 'POST') {
+  if (['/api/player/skip', '/api/player/stop', '/api/player/volume', '/api/player/loop'].includes(req.url) && req.method === 'POST') {
     let body = '';
     req.on('data', c => body += c);
     req.on('end', () => {
-      const { guildId } = JSON.parse(body || '{}');
-      if (!guildId) return res.end(JSON.stringify({ error: 'no guildId' }));
-      const playerMod = require('./player');
-      playerMod.skip(guildId);
-      res.setHeader('Content-Type', 'application/json');
-      res.end(JSON.stringify({ ok: true }));
-    });
-    return;
-  }
-
-  if (req.url === '/api/player/stop' && req.method === 'POST') {
-    let body = '';
-    req.on('data', c => body += c);
-    req.on('end', () => {
-      const { guildId } = JSON.parse(body || '{}');
-      if (!guildId) return res.end(JSON.stringify({ error: 'no guildId' }));
-      const playerMod = require('./player');
-      playerMod.stop(guildId);
-      res.setHeader('Content-Type', 'application/json');
-      res.end(JSON.stringify({ ok: true }));
-    });
-    return;
-  }
-
-  if (req.url === '/api/player/volume' && req.method === 'POST') {
-    let body = '';
-    req.on('data', c => body += c);
-    req.on('end', () => {
-      const { guildId, volume } = JSON.parse(body || '{}');
-      if (!guildId || volume == null) return res.end(JSON.stringify({ error: 'missing guildId or volume' }));
-      const playerMod = require('./player');
-      playerMod.setVolume(guildId, Math.max(0, Math.min(100, parseInt(volume))));
-      res.setHeader('Content-Type', 'application/json');
-      res.end(JSON.stringify({ ok: true }));
-    });
-    return;
-  }
-
-  if (req.url === '/api/player/loop' && req.method === 'POST') {
-    let body = '';
-    req.on('data', c => body += c);
-    req.on('end', () => {
-      const { guildId, loop } = JSON.parse(body || '{}');
-      if (!guildId) return res.end(JSON.stringify({ error: 'no guildId' }));
-      const playerMod = require('./player');
-      playerMod.setLoop(guildId, !!loop);
-      res.setHeader('Content-Type', 'application/json');
-      res.end(JSON.stringify({ ok: true }));
+      try {
+        const data = JSON.parse(body || '{}');
+        const { guildId } = data;
+        if (!guildId) return res.end(JSON.stringify({ error: 'no guildId' }));
+        const playerMod = require('./player');
+        res.setHeader('Content-Type', 'application/json');
+        if (req.url === '/api/player/skip') { playerMod.skip(guildId); }
+        else if (req.url === '/api/player/stop') { playerMod.stop(guildId); }
+        else if (req.url === '/api/player/volume') { playerMod.setVolume(guildId, Math.max(0, Math.min(100, parseInt(data.volume)))); }
+        else if (req.url === '/api/player/loop') { playerMod.setLoop(guildId, !!data.loop); }
+        res.end(JSON.stringify({ ok: true }));
+      } catch (e) { res.end(JSON.stringify({ error: e.message })); }
     });
     return;
   }
