@@ -89,10 +89,123 @@ client.once('ready', async () => {
   console.log('Lavalink initialized — auto-reconnect every 60 minutes');
 });
 
-// Render port binding
+// HTTP server with API endpoints
 const http = require("http");
 const port = process.env.PORT || 10000;
-http.createServer((req, res) => res.end("ok")).listen(port, () => console.log(`Server listening on port ${port}`));
+const server = http.createServer((req, res) => {
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS');
+
+  if (req.method === 'OPTIONS') return res.end();
+
+  if (req.url === '/api/status') {
+    res.setHeader('Content-Type', 'application/json');
+    const ready = client?.isReady?.();
+    const playerMod = require('./player');
+    const activeGuilds = ready ? playerMod.getActiveGuilds() : [];
+    const playingCount = activeGuilds.filter(g => g.playing).length;
+
+    return res.end(JSON.stringify({
+      type: 'music',
+      status: ready ? 'online' : 'connecting',
+      ready: !!ready,
+      uptime: process.uptime(),
+      guilds: client?.guilds?.cache?.size || 0,
+      latency: client?.ws?.ping || 0,
+      playing: playingCount > 0,
+      playingCount,
+      activeGuilds,
+      lavalinkConnected: ready ? require('./lavalink').isConnected() : false,
+      version: '2.0.1',
+    }));
+  }
+
+  if (req.url === '/api/guilds' && req.method === 'GET') {
+    res.setHeader('Content-Type', 'application/json');
+    const ready = client?.isReady?.();
+    if (!ready) return res.end(JSON.stringify({ error: 'not ready' }));
+    const guilds = client.guilds.cache.map(g => ({
+      id: g.id,
+      name: g.name,
+      memberCount: g.memberCount,
+    }));
+    const botUser = client.user;
+    return res.end(JSON.stringify({ guilds, count: guilds.length, bot: { tag: botUser?.tag, id: botUser?.id } }));
+  }
+
+  if (req.url === '/api/players' && req.method === 'GET') {
+    res.setHeader('Content-Type', 'application/json');
+    const ready = client?.isReady?.();
+    if (!ready) return res.end(JSON.stringify({ error: 'not ready' }));
+    const playerMod = require('./player');
+    const active = playerMod.getActiveGuilds();
+    return res.end(JSON.stringify({ players: active, count: active.length }));
+  }
+
+  if (req.url === '/api/player/skip' && req.method === 'POST') {
+    let body = '';
+    req.on('data', c => body += c);
+    req.on('end', () => {
+      const { guildId } = JSON.parse(body || '{}');
+      if (!guildId) return res.end(JSON.stringify({ error: 'no guildId' }));
+      const playerMod = require('./player');
+      playerMod.skip(guildId);
+      res.setHeader('Content-Type', 'application/json');
+      res.end(JSON.stringify({ ok: true }));
+    });
+    return;
+  }
+
+  if (req.url === '/api/player/stop' && req.method === 'POST') {
+    let body = '';
+    req.on('data', c => body += c);
+    req.on('end', () => {
+      const { guildId } = JSON.parse(body || '{}');
+      if (!guildId) return res.end(JSON.stringify({ error: 'no guildId' }));
+      const playerMod = require('./player');
+      playerMod.stop(guildId);
+      res.setHeader('Content-Type', 'application/json');
+      res.end(JSON.stringify({ ok: true }));
+    });
+    return;
+  }
+
+  if (req.url === '/api/player/volume' && req.method === 'POST') {
+    let body = '';
+    req.on('data', c => body += c);
+    req.on('end', () => {
+      const { guildId, volume } = JSON.parse(body || '{}');
+      if (!guildId || volume == null) return res.end(JSON.stringify({ error: 'missing guildId or volume' }));
+      const playerMod = require('./player');
+      playerMod.setVolume(guildId, Math.max(0, Math.min(100, parseInt(volume))));
+      res.setHeader('Content-Type', 'application/json');
+      res.end(JSON.stringify({ ok: true }));
+    });
+    return;
+  }
+
+  if (req.url === '/api/player/loop' && req.method === 'POST') {
+    let body = '';
+    req.on('data', c => body += c);
+    req.on('end', () => {
+      const { guildId, loop } = JSON.parse(body || '{}');
+      if (!guildId) return res.end(JSON.stringify({ error: 'no guildId' }));
+      const playerMod = require('./player');
+      playerMod.setLoop(guildId, !!loop);
+      res.setHeader('Content-Type', 'application/json');
+      res.end(JSON.stringify({ ok: true }));
+    });
+    return;
+  }
+
+  if (req.url === '/api/settings' && req.method === 'GET') {
+    res.setHeader('Content-Type', 'application/json');
+    return res.end(JSON.stringify({ prefix: client.config?.prefix || '!' }));
+  }
+
+  res.end("ok");
+});
+server.listen(port, '0.0.0.0', () => console.log(`Server listening on port ${port}`));
 
 //anticrash
 process.on("unhandledRejection", (reason, p) => {

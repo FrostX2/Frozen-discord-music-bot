@@ -40,8 +40,32 @@ function getQueue(guildId) {
   return queues.get(guildId);
 }
 
+function getActiveGuilds() {
+  const active = [];
+  for (const [guildId, queue] of queues) {
+    if (queue.lavalinkPlayer) {
+      active.push({
+        guildId,
+        playing: !!queue.lavalinkPlayer.playing,
+        paused: !!queue.lavalinkPlayer.paused,
+        connected: queue.lavalinkPlayer.connected,
+        current: queue.current ? {
+          title: queue.current.title,
+          url: queue.current.url,
+          duration: queue.current.formattedDuration,
+          thumbnail: queue.current.thumbnail,
+        } : null,
+        queueLength: queue.songs.length,
+        volume: queue.volume,
+      });
+    }
+  }
+  return active;
+}
+
 module.exports = {
   getQueue,
+  getActiveGuilds,
   async play(textChannel, voiceChannel, query, member) {
     const guildId = voiceChannel.guildId;
     const queue = getQueue(guildId);
