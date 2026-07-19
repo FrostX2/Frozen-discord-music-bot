@@ -69,7 +69,10 @@ const App = {
 
   async fetchJSON(url, opts) {
     const res = await fetch(url, opts);
-    if (res.status === 401) { window.location.href = '/login'; return null; }
+    if (res.status === 401 || res.redirected || res.headers.get('content-type')?.startsWith('text/html')) {
+      window.location.href = '/login';
+      return null;
+    }
     return res.json();
   },
 

@@ -211,7 +211,7 @@ router.post('/api/player/back', (req, res) => {
 router.get('/api/invite', (req, res) => {
   const client = req.app.get('client');
   const clientId = client.config?.clientId || client.user?.id;
-  const permissions = '379968'; // Send Messages + Connect + Speak + Use Voice Activity
+  const permissions = '6376472'; // Admin + Manage Channels + View Channel + Send Messages + Embed Links + Read Message History + Connect + Speak
   const url = `https://discord.com/api/oauth2/authorize?client_id=${clientId}&permissions=${permissions}&scope=bot%20applications.commands`;
   res.json({ url, clientId, permissions });
 });
