@@ -68,12 +68,13 @@ const App = {
   },
 
   async fetchJSON(url, opts) {
-    const res = await fetch(url, opts);
-    if (res.status === 401 || res.redirected || res.headers.get('content-type')?.startsWith('text/html')) {
+    const res = await fetch(url, { ...opts, redirect: 'manual' });
+    if (res.type === 'opaqueredirect' || res.status === 401 || res.status === 302) {
       window.location.href = '/login';
       return null;
     }
-    return res.json();
+    const text = await res.text();
+    try { return JSON.parse(text); } catch { window.location.href = '/login'; return null; }
   },
 
   async startStatusPolling() {
