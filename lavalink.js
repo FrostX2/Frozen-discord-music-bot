@@ -200,7 +200,13 @@ async function init(client) {
     const playerMod = require('./player');
     const queue = playerMod.getQueue(player.guildId);
     if (queue) {
-      queue.current = queue.songs[0] || null;
+      queue.current = {
+        url: track.info.uri,
+        title: track.info.title,
+        name: track.info.title,
+        thumbnail: track.info.artworkUrl || null,
+        formattedDuration: fmt(track.info.duration),
+      };
     }
 
     // Send now-playing embed to the designated music channel
@@ -245,7 +251,18 @@ async function init(client) {
     const queue = playerMod.getQueue(player.guildId);
     if (queue) {
       queue.songs.shift();
-      queue.current = queue.songs[0] || null;
+      if (queue.songs.length > 0) {
+        const next = queue.songs[0];
+        queue.current = {
+          url: next.url,
+          title: next.title,
+          name: next.name,
+          thumbnail: next.thumbnail,
+          formattedDuration: next.formattedDuration,
+        };
+      } else {
+        queue.current = null;
+      }
       db.saveQueue(player.guildId, queue.songs);
     }
     if (!player.queue.tracks.length && (!player.repeatMode || player.repeatMode === 'off')) {

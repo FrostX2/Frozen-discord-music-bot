@@ -99,7 +99,7 @@ const App = {
     this.stopPlayerPolling();
     this.playerInterval = setInterval(() => {
       if (this.currentPage === 'players') this.loadPage('players');
-    }, 60000);
+    }, 15000);
   },
 
   stopPlayerPolling() {
@@ -221,7 +221,10 @@ const App = {
 
     el.innerHTML = `
       <div class="card">
-        <div class="card-title">Active Players</div>
+        <div class="card-title" style="display:flex;justify-content:space-between;align-items:center">
+          <span>Active Players</span>
+          ${playersData?.players?.length ? `<button class="btn btn-sm btn-danger" onclick="App.clearAllQueues()">Clear All Queues</button>` : ''}
+        </div>
         ${playersData?.players?.length ? `
           <div class="table-wrapper">
             <table>
@@ -501,6 +504,23 @@ const App = {
       this.toast(`Cleared ${res.count} songs`, 'success');
       setTimeout(() => this.loadPage('players'), 300);
     }
+  },
+
+  async clearAllQueues() {
+    if (!confirm('Remove all songs from ALL queues?')) return;
+    const playersData = await this.fetchJSON('/api/players');
+    if (!playersData?.players?.length) return this.toast('No active players', 'info');
+    let total = 0;
+    for (const p of playersData.players) {
+      const res = await this.fetchJSON('/api/player/clear', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ guildId: p.guildId })
+      });
+      if (res?.ok) total += res.count;
+    }
+    this.toast(`Cleared ${total} songs from ${playersData.players.length} queues`, 'success');
+    setTimeout(() => this.loadPage('players'), 300);
   },
 
   async playSong(guildId) {
