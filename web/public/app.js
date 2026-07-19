@@ -85,6 +85,8 @@ const App = {
           dot.className = 'status-dot offline';
           txt.textContent = 'Connecting...';
         }
+        const vtag = document.getElementById('versionTag');
+        if (vtag && data.version) vtag.textContent = `v${data.version}`;
       } catch {}
     };
     poll();
@@ -317,7 +319,10 @@ const App = {
       ` : ''}
 
       <div class="card">
-        <div class="card-title">Queue (${data.songs.length} songs)</div>
+        <div class="card-title" style="display:flex;justify-content:space-between;align-items:center">
+          <span>Queue (${data.songs.length} songs)</span>
+          ${data.songs.length ? `<button class="btn btn-sm btn-danger" onclick="App.clearQueue('${guildId}')">Clear Queue</button>` : ''}
+        </div>
         ${data.songs.length ? `
           <ul class="queue-list">
             ${data.songs.map((s, i) => `
@@ -470,6 +475,19 @@ const App = {
     });
     this.toast('Song removed', 'success');
     setTimeout(() => this.loadPage('players'), 300);
+  },
+
+  async clearQueue(guildId) {
+    if (!confirm('Remove all songs from the queue?')) return;
+    const res = await this.fetchJSON('/api/player/clear', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ guildId })
+    });
+    if (res?.ok) {
+      this.toast(`Cleared ${res.count} songs`, 'success');
+      setTimeout(() => this.loadPage('players'), 300);
+    }
   },
 
   async playSong(guildId) {

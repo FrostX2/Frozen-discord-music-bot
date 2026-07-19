@@ -66,6 +66,10 @@ function getActiveGuilds() {
 module.exports = {
   getQueue,
   getActiveGuilds,
+  saveQueue(guildId) {
+    const queue = getQueue(guildId);
+    db.saveQueue(guildId, queue.songs);
+  },
   async play(textChannel, voiceChannel, query, member) {
     const guildId = voiceChannel.guildId;
     const queue = getQueue(guildId);
@@ -195,6 +199,14 @@ module.exports = {
     const song = queue.songs.splice(id - 1, 1)[0];
     db.saveQueue(guildId, queue.songs);
     return song;
+  },
+
+  clearQueue(guildId) {
+    const queue = getQueue(guildId);
+    const count = queue.songs.length;
+    queue.songs = [];
+    db.saveQueue(guildId, queue.songs);
+    return count;
   },
 
   jump(guildId, id) {

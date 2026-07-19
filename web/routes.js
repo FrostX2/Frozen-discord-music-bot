@@ -68,7 +68,7 @@ router.get('/api/status', (req, res) => {
     playingCount,
     activeGuilds,
     lavalinkConnected: ready ? require('../lavalink').isConnected() : false,
-    version: '2.1.0',
+    version: '2.2.0',
   });
 });
 
@@ -194,6 +194,13 @@ router.post('/api/player/remove', (req, res) => {
   } catch (e) { res.status(400).json({ error: e.message }); }
 });
 
+router.post('/api/player/clear', (req, res) => {
+  const { guildId } = req.body;
+  if (!guildId) return res.status(400).json({ error: 'guildId required' });
+  const count = require('../player').clearQueue(guildId);
+  res.json({ ok: true, count });
+});
+
 router.post('/api/player/back', (req, res) => {
   const { guildId } = req.body;
   if (!guildId) return res.status(400).json({ error: 'guildId required' });
@@ -241,7 +248,7 @@ router.get('/api/settings', (req, res) => {
   res.json({
     prefix: client.config?.prefix || '!',
     clientId: client.config?.clientId,
-    version: '2.1.0',
+    version: '2.2.0',
   });
 });
 

@@ -4,19 +4,24 @@ module.exports = {
     category: "Music",
     data: new SlashCommandBuilder()
         .setName("remove")
-        .setDescription("Remove song!")
+        .setDescription("Remove song from queue!")
         .addNumberOption((option) =>
             option
                 .setName("id")
                 .setDescription("ID")
                 .setRequired(false)
                 .setAutocomplete(true)
+        )
+        .addBooleanOption((option) =>
+            option
+                .setName("all")
+                .setDescription("Remove all songs from queue")
+                .setRequired(false)
         ),
 
     async execute(interaction, client) {
         try {
             const voiceChannel = interaction.member.voice.channel;
-            const queue = await client.distube.getQueue(interaction);
             if (!voiceChannel) {
                 return interaction.reply({
                     embeds: [
@@ -42,7 +47,11 @@ module.exports = {
                     ],
                 });
             }
-            if (!queue) {
+
+            const playerMod = require('../../player');
+            const queue = playerMod.getQueue(interaction.guild.id);
+
+            if (!queue.songs.length && !queue.current) {
                 return interaction.reply({
                     embeds: [
                         new EmbedBuilder()
@@ -54,25 +63,56 @@ module.exports = {
                 });
             }
 
-            const id = interaction.options.getNumber("id");
-            // let track = queue.songs[args[0]];
-            let song = queue.songs.splice(id - 1, 1);
-            const msg = await queue.textChannel.send({
-                embeds: [
-                    new EmbedBuilder()
-                        .setColor(client.config.colorDefault)
-                        .setAuthor({
-                            name: "Removed song",
-                            iconURL: client.user.displayAvatarURL(),
-                        })
-                        .setDescription(
-                            `🎵 | Removed ${song[0].name} from the playlist!`
-                        ),
-                ],
-            });
-            setTimeout(() => {
-                msg.delete();
-            }, 5000);
+            const removeAll = interaction.options.getBoolean("all");
+
+            if (removeAll) {
+                const count = queue.songs.length;
+                queue.songs = [];
+                playerMod.saveQueue(interaction.guild.id);
+                const msg = await queue.textChannel.send({
+                    embeds: [
+                        new EmbedBuilder()
+                            .setColor(client.config.colorDefault)
+                            .setAuthor({
+                                name: "Cleared queue",
+                                iconURL: client.user.displayAvatarURL(),
+                            })
+                            .setDescription(
+                                `🗑️ | Removed all ${count} songs from the playlist!`
+                            ),
+                    ],
+                });
+                setTimeout(() => { msg.delete(); }, 5000);
+            } else {
+                const id = interaction.options.getNumber("id");
+                if (!id) {
+                    return interaction.reply({
+                        embeds: [
+                            new EmbedBuilder()
+                                .setColor(client.config.colorError)
+                                .setDescription(
+                                    `🚫 | Please provide a song ID or use \`all: true\`!`
+                                ),
+                        ],
+                        ephemeral: true,
+                    });
+                }
+                const song = playerMod.remove(interaction.guild.id, id);
+                const msg = await queue.textChannel.send({
+                    embeds: [
+                        new EmbedBuilder()
+                            .setColor(client.config.colorDefault)
+                            .setAuthor({
+                                name: "Removed song",
+                                iconURL: client.user.displayAvatarURL(),
+                            })
+                            .setDescription(
+                                `🎵 | Removed ${song.name} from the playlist!`
+                            ),
+                    ],
+                });
+                setTimeout(() => { msg.delete(); }, 5000);
+            }
         } catch (err) {
             console.log(err);
             const msg = await interaction.reply({
@@ -94,44 +134,21 @@ module.exports = {
 
     async autocomplete(interaction, client) {
         const focusedValue = interaction.options.getFocused();
-        const queue = await client.distube.getQueue(interaction);
+        const playerMod = require('../../player');
+        const queue = playerMod.getQueue(interaction.guild.id);
 
-        if (queue.songs.length > 25) {
-            const tracks = queue.songs
-                .map((song, i) => {
-                    return {
-                        name: `${i + 1}. ${song.name}`,
-                        value: i + 1,
-                    };
-                })
-                .slice(0, 25);
-            const filtered = tracks.filter((track) =>
-                track.name.startsWith(focusedValue)
-            );
-            await interaction.respond(
-                filtered.map((track) => ({
-                    name: track.name,
-                    value: track.value,
-                }))
-            );
-        } else {
-            const tracks = queue.songs
-                .map((song, i) => {
-                    return {
-                        name: `${i + 1}. ${song.name}`,
-                        value: i + 1,
-                    };
-                })
-                .slice(0, queue.songs.length);
-            const filtered = tracks.filter((track) =>
-                track.name.startsWith(focusedValue)
-            );
-            await interaction.respond(
-                filtered.map((track) => ({
-                    name: track.name,
-                    value: track.value,
-                }))
-            );
-        }
+        const tracks = queue.songs.slice(0, 25).map((song, i) => ({
+            name: `${i + 1}. ${song.name}`,
+            value: i + 1,
+        }));
+        const filtered = tracks.filter((track) =>
+            track.name.startsWith(focusedValue)
+        );
+        await interaction.respond(
+            filtered.map((track) => ({
+                name: track.name,
+                value: track.value,
+            }))
+        );
     },
 };

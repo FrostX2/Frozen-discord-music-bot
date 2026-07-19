@@ -1,7 +1,7 @@
 ﻿<div align="center">
   <img src="https://capsule-render.vercel.app/api?type=waving&color=gradient&height=120&section=header"/>
   
-  # FuriMusic — NotFrost
+  # FuriMusic v2.2.0 — NotFrost
   ### *Drop beats, not packets*
 
   [![LOC](https://tokei.rs/b1/github/FrostX2/Frozen-discord-music-bot?category=code)](https://github.com/FrostX2/Frozen-discord-music-bot)
@@ -25,7 +25,7 @@ A **FuriMusic** with instant audio, supporting **YouTube**, **Spotify**, **YouTu
 
 - **Auto-styled music channels** — every server gets its own vibe
 - **Smart search fallback** — YouTube Music -> YouTube -> SoundCloud
-- **Full playback control** — play, pause, skip, loop, queue, remove, go back
+- **Full playback control** — play, pause, skip, loop, queue, remove, clear queue, go back
 - **Volume control** — 0 to 200
 - **Auto-leave** — 2 min after queue ends, instantly if everyone ghosts
 - **Now-playing embed** — with requester info
@@ -95,7 +95,7 @@ The web dashboard provides:
 
 - **Dashboard** — bot status, guild count, active players, latency, Lavalink status, uptime
 - **Guilds** — list all servers with icons, member count, music channel
-- **Players** — view/control active players with full playback controls, queue management, volume, loop
+- **Players** — view/control active players with full playback controls, queue management (clear queue), volume, loop
 - **Custom Bots** — add/remove/activate custom bot tokens
 - **Invite Bot** — one-click invite link generator
 
@@ -116,7 +116,7 @@ Default password: `admin123` (change via `ADMIN_PASSWORD` in `.env`)
 | `!loop` | `/loop` | Forever and ever |
 | `!queue` | `/queue` | What's next? |
 | `!nowplaying` / `!np` | `/nowplaying` `/np` | What's this? |
-| `!remove` | `/remove` | Remove a song |
+| `!remove` | `/remove` | Remove a song (or `/remove all:true` to clear queue) |
 | `!back` | `/back` | Previous track |
 | `!filter` | `/filter` | Audio filters |
 | `!help` | `/help` | You're looking at it |

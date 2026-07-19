@@ -105,7 +105,7 @@ app.use(express.static(path.join(__dirname, 'web', 'public')));
 app.use('/', require('./web/routes'));
 
 // Catch-all -> redirect to dashboard
-app.get('*', (req, res) => {
+app.get('/{*path}', (req, res) => {
   if (req.path.startsWith('/api/')) return res.status(404).json({ error: 'not found' });
   res.redirect('/');
 });
