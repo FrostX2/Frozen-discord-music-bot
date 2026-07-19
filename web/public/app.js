@@ -41,7 +41,9 @@ const App = {
       el.classList.toggle('active', el.dataset.page === page);
     });
     document.getElementById('pageTitle').textContent = this.getPageTitle(page);
+    this.stopPlayerPolling();
     this.loadPage(page);
+    if (page === 'players') this.startPlayerPolling();
   },
 
   getPageTitle(page) {
@@ -91,6 +93,17 @@ const App = {
     };
     poll();
     this.statusInterval = setInterval(poll, 10000);
+  },
+
+  startPlayerPolling() {
+    this.stopPlayerPolling();
+    this.playerInterval = setInterval(() => {
+      if (this.currentPage === 'players') this.loadPage('players');
+    }, 60000);
+  },
+
+  stopPlayerPolling() {
+    if (this.playerInterval) { clearInterval(this.playerInterval); this.playerInterval = null; }
   },
 
   async renderDashboard(el) {
