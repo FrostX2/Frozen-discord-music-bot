@@ -89,87 +89,31 @@ client.once('ready', async () => {
   console.log('Lavalink initialized — auto-reconnect every 60 minutes');
 });
 
-// HTTP server with API endpoints
-const http = require("http");
-const port = process.env.PORT || 10000;
-const server = http.createServer((req, res) => {
-  res.setHeader('Access-Control-Allow-Origin', '*');
-  res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS');
+// Express web server with admin panel
+const express = require('express');
+const app = express();
+const webPort = process.env.WEB_PORT || 13426;
 
-  if (req.method === 'OPTIONS') return res.end();
+app.set('client', client);
+app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
 
-  if (req.url === '/api/status') {
-    res.setHeader('Content-Type', 'application/json');
-    const ready = client?.isReady?.();
-    const playerMod = require('./player');
-    const activeGuilds = ready ? playerMod.getActiveGuilds() : [];
-    const playingCount = activeGuilds.filter(g => g.playing).length;
+// Static files
+app.use(express.static(path.join(__dirname, 'web', 'public')));
 
-    return res.end(JSON.stringify({
-      type: 'music',
-      status: ready ? 'online' : 'connecting',
-      ready: !!ready,
-      uptime: process.uptime(),
-      guilds: client?.guilds?.cache?.size || 0,
-      latency: client?.ws?.ping || 0,
-      playing: playingCount > 0,
-      playingCount,
-      activeGuilds,
-      lavalinkConnected: ready ? require('./lavalink').isConnected() : false,
-      version: '2.0.1',
-    }));
-  }
+// API routes
+app.use('/', require('./web/routes'));
 
-  if (req.url === '/api/guilds' && req.method === 'GET') {
-    res.setHeader('Content-Type', 'application/json');
-    const ready = client?.isReady?.();
-    if (!ready) return res.end(JSON.stringify({ error: 'not ready' }));
-    const guilds = client.guilds.cache.map(g => ({
-      id: g.id,
-      name: g.name,
-      memberCount: g.memberCount,
-    }));
-    const botUser = client.user;
-    return res.end(JSON.stringify({ guilds, count: guilds.length, bot: { tag: botUser?.tag, id: botUser?.id } }));
-  }
-
-  if (req.url === '/api/players' && req.method === 'GET') {
-    res.setHeader('Content-Type', 'application/json');
-    const ready = client?.isReady?.();
-    if (!ready) return res.end(JSON.stringify({ error: 'not ready' }));
-    const playerMod = require('./player');
-    const active = playerMod.getActiveGuilds();
-    return res.end(JSON.stringify({ players: active, count: active.length }));
-  }
-
-  if (['/api/player/skip', '/api/player/stop', '/api/player/volume', '/api/player/loop'].includes(req.url) && req.method === 'POST') {
-    let body = '';
-    req.on('data', c => body += c);
-    req.on('end', () => {
-      try {
-        const data = JSON.parse(body || '{}');
-        const { guildId } = data;
-        if (!guildId) return res.end(JSON.stringify({ error: 'no guildId' }));
-        const playerMod = require('./player');
-        res.setHeader('Content-Type', 'application/json');
-        if (req.url === '/api/player/skip') { playerMod.skip(guildId); }
-        else if (req.url === '/api/player/stop') { playerMod.stop(guildId); }
-        else if (req.url === '/api/player/volume') { playerMod.setVolume(guildId, Math.max(0, Math.min(100, parseInt(data.volume)))); }
-        else if (req.url === '/api/player/loop') { playerMod.setLoop(guildId, !!data.loop); }
-        res.end(JSON.stringify({ ok: true }));
-      } catch (e) { res.end(JSON.stringify({ error: e.message })); }
-    });
-    return;
-  }
-
-  if (req.url === '/api/settings' && req.method === 'GET') {
-    res.setHeader('Content-Type', 'application/json');
-    return res.end(JSON.stringify({ prefix: client.config?.prefix || '!' }));
-  }
-
-  res.end("ok");
+// Catch-all -> redirect to dashboard
+app.get('*', (req, res) => {
+  if (req.path.startsWith('/api/')) return res.status(404).json({ error: 'not found' });
+  res.redirect('/');
 });
-server.listen(port, '0.0.0.0', () => console.log(`Server listening on port ${port}`));
+
+app.listen(webPort, '0.0.0.0', () => {
+  console.log(`Admin panel: http://0.0.0.0:${webPort}`);
+  console.log(`API available at http://0.0.0.0:${webPort}/api/status`);
+});
 
 //anticrash
 process.on("unhandledRejection", (reason, p) => {

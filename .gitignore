@@ -6,3 +6,4 @@ ffmpeg
 nodelink/server/
 musicbot.db
 *.db
+githubtoken.txt

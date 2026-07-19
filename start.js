@@ -103,6 +103,9 @@ async function main() {
   process.on('SIGTERM', () => { if (nodelinkProc) nodelinkProc.kill(); process.exit(0); });
 
   require('./index.js');
+
+  const webPort = process.env.WEB_PORT || 13426;
+  console.log(`Admin panel: http://0.0.0.0:${webPort}`);
 }
 
 main().catch((err) => {

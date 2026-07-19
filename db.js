@@ -19,6 +19,18 @@ function init() {
       value TEXT,
       PRIMARY KEY (guild_id, key)
     );
+    CREATE TABLE IF NOT EXISTS custom_bots (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      name TEXT NOT NULL,
+      token TEXT NOT NULL,
+      client_id TEXT NOT NULL,
+      prefix TEXT DEFAULT '!',
+      status TEXT DEFAULT 'online',
+      status_type TEXT DEFAULT 'playing',
+      status_text TEXT DEFAULT '',
+      active INTEGER DEFAULT 0,
+      created_at INTEGER NOT NULL
+    );
   `);
   return db;
 }
@@ -61,4 +73,36 @@ function getSetting(guildId, key) {
   return row ? row.value : null;
 }
 
-module.exports = { init, saveQueue, loadQueue, clearQueue, setSetting, getSetting };
+function addBot(name, token, clientId, prefix) {
+  if (!db) return null;
+  const result = db.prepare(`INSERT INTO custom_bots (name, token, client_id, prefix, created_at) VALUES (?, ?, ?, ?, ?)`).run(name, token, clientId, prefix || '!', Date.now());
+  return result.lastInsertRowid;
+}
+
+function getBots() {
+  if (!db) return [];
+  return db.prepare(`SELECT * FROM custom_bots ORDER BY created_at DESC`).all();
+}
+
+function getBot(id) {
+  if (!db) return null;
+  return db.prepare(`SELECT * FROM custom_bots WHERE id = ?`).get(id);
+}
+
+function deleteBot(id) {
+  if (!db) return;
+  db.prepare(`DELETE FROM custom_bots WHERE id = ?`).run(id);
+}
+
+function setActiveBot(id) {
+  if (!db) return;
+  db.prepare(`UPDATE custom_bots SET active = 0`).run();
+  db.prepare(`UPDATE custom_bots SET active = 1 WHERE id = ?`).run(id);
+}
+
+function getActiveBot() {
+  if (!db) return null;
+  return db.prepare(`SELECT * FROM custom_bots WHERE active = 1`).get();
+}
+
+module.exports = { init, saveQueue, loadQueue, clearQueue, setSetting, getSetting, addBot, getBots, getBot, deleteBot, setActiveBot, getActiveBot };
