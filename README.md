@@ -28,6 +28,7 @@ A **FuriMusic** with instant audio, supporting **YouTube**, **Spotify**, **YouTu
 - **Full playback control** — play, pause, skip, loop, queue, remove, clear queue, go back
 - **Volume control** — 0 to 200
 - **Auto-leave** — 2 min after queue ends, instantly if everyone ghosts
+- **Queue persistence** — SQLite-backed queue survives bot restarts, auto-join and resume if users are in voice
 - **Now-playing embed** — with requester info
 - **Admin panel** — web dashboard at `0.0.0.0:13426`
 - **Custom bots** — add and manage multiple bot tokens
