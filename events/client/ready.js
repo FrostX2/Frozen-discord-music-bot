@@ -6,7 +6,6 @@ async function ensureMusicChannels(client) {
   const voiceName = '🔊┊𝓿𝓸𝓲𝓬𝓮';
   const categoryName = '🎵┊𝓶𝓾𝓼𝓲𝓬';
   for (const guild of client.guilds.cache.values()) {
-    // Ensure category exists
     let category;
     try {
       const channels = await guild.channels.fetch();
@@ -23,7 +22,6 @@ async function ensureMusicChannels(client) {
       }
     }
 
-    // Ensure text channel exists
     let channel;
     try {
       const channels = await guild.channels.fetch();
@@ -52,7 +50,6 @@ async function ensureMusicChannels(client) {
       }
     }
 
-    // Ensure voice channel exists
     let voice;
     try {
       const channels = await guild.channels.fetch();
@@ -75,6 +72,78 @@ async function ensureMusicChannels(client) {
   client.musicSetup = setup;
 }
 
+async function autoPlayQueues(client) {
+  const { getQueue, restoreQueue } = require('../../player');
+  const db = require('../../db');
+  const { getLavalink, isConnected } = require('../../lavalink');
+
+  for (const guild of client.guilds.cache.values()) {
+    const saved = restoreQueue(guild.id);
+    if (!saved || !saved.length) continue;
+
+    const settings = db.getQueueSettings(guild.id);
+    if (!settings?.voiceChannelId) {
+      console.log(`[AutoPlay] ${guild.name}: ${saved.length} songs saved but no voice channel recorded, skipping`);
+      continue;
+    }
+
+    let voiceChannel;
+    try {
+      voiceChannel = await guild.channels.fetch(settings.voiceChannelId);
+    } catch {}
+    if (!voiceChannel || voiceChannel.type !== ChannelType.GuildVoice) {
+      console.log(`[AutoPlay] ${guild.name}: saved voice channel not found, skipping`);
+      continue;
+    }
+
+    const nonBotMembers = voiceChannel.members.filter(m => !m.user.bot);
+    if (nonBotMembers.size === 0) {
+      console.log(`[AutoPlay] ${guild.name}: no users in ${voiceChannel.name}, queue kept in DB`);
+      continue;
+    }
+
+    const lavalink = getLavalink();
+    if (!lavalink || !isConnected()) {
+      console.log(`[AutoPlay] ${guild.name}: Lavalink not connected yet, skipping`);
+      continue;
+    }
+
+    const queue = getQueue(guild.id);
+    const textChannel = settings.textChannelId ? guild.channels.cache.get(settings.textChannelId) : null;
+
+    let player = lavalink.getPlayer(guild.id);
+    if (!player) {
+      player = lavalink.createPlayer({
+        guildId: guild.id,
+        voiceChannelId: voiceChannel.id,
+        textChannelId: textChannel?.id || voiceChannel.id,
+        volume: queue.volume,
+      });
+      queue.lavalinkPlayer = player;
+      queue.textChannel = textChannel;
+      player.connect();
+    }
+
+    const firstSong = queue.songs[0];
+    if (firstSong?.url) {
+      try {
+        const result = await player.search({ query: firstSong.url }, client.user);
+        if (result?.tracks?.length) {
+          player.queue.add(result.tracks[0]);
+          await player.play();
+          console.log(`[AutoPlay] ${guild.name}: resumed "${firstSong.name}" in ${voiceChannel.name} (${nonBotMembers.size} users)`);
+        } else {
+          console.log(`[AutoPlay] ${guild.name}: track not found on Lavalink, skipping`);
+          queue.songs.shift();
+          db.saveQueue(guild.id, queue.songs);
+        }
+      } catch (err) {
+        console.error(`[AutoPlay] ${guild.name}: failed to play:`, err.message);
+      }
+    }
+  }
+}
+
 module.exports = {
     name: "ready",
     once: true,
@@ -82,15 +151,11 @@ module.exports = {
         console.log(`${client.user.tag} is ready!`);
         ensureMusicChannels(client);
 
-        // Restore saved queues from database
-        const { getQueue, restoreQueue } = require('../../player');
-        const db = require('../../db');
-        for (const guild of client.guilds.cache.values()) {
-            const saved = restoreQueue(guild.id);
-            if (saved && saved.length > 0) {
-                console.log(`[DB] Restored ${saved.length} songs in queue for ${guild.name} (${guild.id})`);
-            }
-        }
+        // Wait for music channels to be set up
+        await new Promise(r => setTimeout(r, 3000));
+
+        // Auto-join and play saved queues
+        await autoPlayQueues(client);
 
         let activities = [
                 `music with NotFrost`,

@@ -105,4 +105,18 @@ function getActiveBot() {
   return db.prepare(`SELECT * FROM custom_bots WHERE active = 1`).get();
 }
 
-module.exports = { init, saveQueue, loadQueue, clearQueue, setSetting, getSetting, addBot, getBots, getBot, deleteBot, setActiveBot, getActiveBot };
+function getQueueSettings(guildId) {
+  if (!db) return null;
+  const row = db.prepare(`SELECT value FROM settings WHERE guild_id = ? AND key = 'voiceChannelId'`).get(guildId);
+  const row2 = db.prepare(`SELECT value FROM settings WHERE guild_id = ? AND key = 'textChannelId'`).get(guildId);
+  if (!row) return null;
+  return { voiceChannelId: row.value, textChannelId: row2?.value };
+}
+
+function saveQueueSettings(guildId, voiceChannelId, textChannelId) {
+  if (!db) return;
+  setSetting(guildId, 'voiceChannelId', voiceChannelId);
+  setSetting(guildId, 'textChannelId', textChannelId);
+}
+
+module.exports = { init, saveQueue, loadQueue, clearQueue, setSetting, getSetting, addBot, getBots, getBot, deleteBot, setActiveBot, getActiveBot, getQueueSettings, saveQueueSettings };

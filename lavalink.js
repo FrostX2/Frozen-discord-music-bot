@@ -57,9 +57,7 @@ function scheduleLeave(guildId) {
     const { getQueue } = require('./player');
     const q = getQueue(guildId);
     q.current = null;
-    q.songs = [];
     q.lavalinkPlayer = null;
-    db.clearQueue(guildId);
     return;
   }
 
@@ -70,9 +68,7 @@ function scheduleLeave(guildId) {
     const { getQueue } = require('./player');
     const q = getQueue(guildId);
     q.current = null;
-    q.songs = [];
     q.lavalinkPlayer = null;
-    db.clearQueue(guildId);
     leaveTimers.delete(guildId);
   }, 120000);
 

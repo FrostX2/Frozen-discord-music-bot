@@ -18,7 +18,6 @@ module.exports = {
     const { getQueue } = require('../../player');
     const q = getQueue(guildId);
     q.current = null;
-    q.songs = [];
     q.lavalinkPlayer = null;
     clearLeaveTimer(guildId);
   },

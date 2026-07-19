@@ -136,6 +136,8 @@ module.exports = {
       }
     }
 
+    db.saveQueueSettings(guildId, voiceChannel.id, textChannel.id);
+
     if (result.playlist) {
       return {
         type: 'playlist',
@@ -156,6 +158,8 @@ module.exports = {
     const queue = getQueue(guildId);
     queue.songs = [];
     db.clearQueue(guildId);
+    db.setSetting(guildId, 'voiceChannelId', '');
+    db.setSetting(guildId, 'textChannelId', '');
     if (queue.lavalinkPlayer) queue.lavalinkPlayer.destroy();
     queue.lavalinkPlayer = null;
     queue.current = null;
