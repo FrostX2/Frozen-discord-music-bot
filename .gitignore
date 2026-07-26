@@ -10,4 +10,5 @@ githubtoken.txt
 repo.txt
 commit-all.sh
 commit-specific.sh
-
+*.db-shm
+*.db-wal
