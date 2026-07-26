@@ -1,4 +1,4 @@
-const { EmbedBuilder, ChannelType } = require("discord.js");
+const { EmbedBuilder } = require("discord.js");
 
 function fmt(ms) {
   if (!ms) return "0:00";
@@ -207,7 +207,7 @@ module.exports = {
   name: "messageCreate",
   async execute(message) {
     if (message.author.bot) return;
-    if (message.channel.type === ChannelType.DM) return;
+    if (message.channel.type === "dm") return;
 
     const prefix = message.client.config.prefix;
 

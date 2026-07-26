@@ -68,13 +68,15 @@ const App = {
   },
 
   async fetchJSON(url, opts) {
-    const res = await fetch(url, { ...opts, redirect: 'manual' });
-    if (res.type === 'opaqueredirect' || res.status === 401 || res.status === 302) {
-      window.location.href = '/login';
+    try {
+      const res = await fetch(url, opts);
+      if (res.status === 401) { window.location.href = '/login'; return null; }
+      if (!res.ok) return null;
+      const text = await res.text();
+      return JSON.parse(text);
+    } catch {
       return null;
     }
-    const text = await res.text();
-    try { return JSON.parse(text); } catch { window.location.href = '/login'; return null; }
   },
 
   async startStatusPolling() {

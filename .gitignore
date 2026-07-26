@@ -7,3 +7,7 @@ nodelink/server/
 musicbot.db
 *.db
 githubtoken.txt
+repo.txt
+commit-all.sh
+commit-specific.sh
+
