@@ -1,10 +1,11 @@
-const { EmbedBuilder, SlashCommandBuilder, ChannelType } = require("discord.js");
+const { EmbedBuilder, SlashCommandBuilder, ChannelType, PermissionFlagsBits } = require("discord.js");
 
 module.exports = {
     category: "Information",
     data: new SlashCommandBuilder()
         .setName("serverinfo")
-        .setDescription("Gets information about the server"),
+        .setDescription("Gets information about the server")
+        .setDefaultMemberPermissions(PermissionFlagsBits.Administrator),
 
     async execute(interaction, client) {
         let boosts = interaction.guild.premiumSubscriptionCount;
