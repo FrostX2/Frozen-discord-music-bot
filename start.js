@@ -87,9 +87,8 @@ function startNodeLink() {
 async function main() {
   let nodelinkProc = null;
 
-  if (process.env.LAVALINK_HOST) {
-    console.log(`Using external Lavalink at ${process.env.LAVALINK_HOST}:${process.env.LAVALINK_PORT || 2333}`);
-    await new Promise((resolve) => setTimeout(resolve, 5000));
+  if (process.env.SKIP_NODELINK === 'true') {
+    console.log('Skipping NodeLink (SKIP_NODELINK=true) — will only use external Lavalink nodes');
   } else {
     console.log('Starting NodeLink...');
     nodelinkProc = startNodeLink();

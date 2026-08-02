@@ -78,7 +78,7 @@ module.exports = {
     require('./lavalink').clearLeaveTimer(guildId);
 
     const lavalink = require('./lavalink').getLavalink();
-    const { isConnected } = require('./lavalink');
+    const { isConnected, getPreferredNodeId } = require('./lavalink');
 
     // Wait up to 15s for a node to connect
     for (let i = 0; i < 30; i++) {
@@ -95,6 +95,7 @@ module.exports = {
         voiceChannelId: voiceChannel.id,
         textChannelId: textChannel.id,
         volume: queue.volume,
+        node: getPreferredNodeId() || undefined,
       });
       queue.lavalinkPlayer = player;
       player.connect();

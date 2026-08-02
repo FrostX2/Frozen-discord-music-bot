@@ -29,13 +29,26 @@ function parsePort(rawPort, fallback, name) {
 let lavalink = null;
 let botClient = null;
 const leaveTimers = new Map();
+const nowPlayingMessages = new Map();
 let autoReconnectTimer = null;
+let lastReconnectAttempt = 0;
+
+const RECONNECT_COOLDOWN = parseInt(process.env.RECONNECT_COOLDOWN, 10) || 15 * 60 * 1000; // 15 min
+const RECONNECT_CHECK_INTERVAL = parseInt(process.env.RECONNECT_CHECK_INTERVAL, 10) || 60 * 1000; // 60s
 
 function clearLeaveTimer(guildId) {
   const timer = leaveTimers.get(guildId);
   if (timer) {
     clearTimeout(timer);
     leaveTimers.delete(guildId);
+  }
+}
+
+function deleteNowPlaying(guildId) {
+  const msg = nowPlayingMessages.get(guildId);
+  if (msg) {
+    nowPlayingMessages.delete(guildId);
+    msg.delete().catch(() => {});
   }
 }
 
@@ -77,8 +90,36 @@ function scheduleLeave(guildId) {
 
 function isConnected() {
   if (!lavalink) return false;
-  const node = lavalink.nodeManager.nodes.get('main');
-  return node?.connected === true;
+  return Array.from(lavalink.nodeManager.nodes.values()).some((node) => node?.connected === true);
+}
+
+let nodePriority = [];
+
+// First connected node in priority order: main -> alt1..alt5 -> nodelink
+function getPreferredNodeId() {
+  if (!lavalink) return null;
+  for (const id of nodePriority) {
+    if (lavalink.nodeManager.nodes.get(id)?.connected) return id;
+  }
+  return null;
+}
+
+// Move players back to the highest-priority connected node (e.g. when main recovers)
+function rebalancePlayers() {
+  if (!lavalink) return;
+  const best = getPreferredNodeId();
+  if (!best) return;
+  for (const player of lavalink.players.values()) {
+    if (!player?.node) continue;
+    if (player.node.options.id === best) continue;
+    if (player.getData?.('internal_nodeChanging')) continue;
+    const lastChange = player.getData?.('lastNodeChange') || 0;
+    if (Date.now() - lastChange < 15000) continue; // 15s cooldown to avoid flapping
+    player.setData?.('lastNodeChange', Date.now());
+    player.changeNode(best).catch((err) => {
+      console.error(`[Lavalink] Failed to rebalance player ${player.guildId} to "${best}":`, err.message);
+    });
+  }
 }
 
 async function reconnect() {
@@ -88,9 +129,8 @@ async function reconnect() {
     return true;
   }
 
-  const node = lavalink.nodeManager.nodes.get('main');
-  if (!node) {
-    console.warn('[Lavalink] No "main" node found, reinitializing...');
+  if (lavalink.nodeManager.nodes.size === 0) {
+    console.warn('[Lavalink] No nodes found, reinitializing...');
     lavalink.nodeManager.removeAllListeners();
     lavalink.removeAllListeners();
     lavalink = null;
@@ -98,71 +138,121 @@ async function reconnect() {
     return true;
   }
 
-  if (node.connected) {
-    console.log('[Lavalink] Already connected, nothing to do');
+  const ids = nodePriority.length ? nodePriority : Array.from(lavalink.nodeManager.nodes.keys());
+  const targets = ids
+    .map((id) => lavalink.nodeManager.nodes.get(id))
+    .filter((n) => n && n.id);
+
+  const disconnected = targets.filter((n) => !n.connected);
+  if (!disconnected.length) {
+    console.log('[Lavalink] All nodes connected, nothing to do');
     return true;
   }
 
-  console.log('[Lavalink] Reconnecting node "main"...');
-  node.disconnect();
-  await new Promise(r => setTimeout(r, 2000));
-  node.connect();
+  console.log(`[Lavalink] Reconnecting ${disconnected.length} node(s): ${disconnected.map((n) => n.id).join(', ')}`);
+  lastReconnectAttempt = Date.now();
+  for (const node of disconnected) {
+    node.disconnect();
+    await new Promise((r) => setTimeout(r, 2000));
+    node.connect();
+  }
 
   for (let i = 0; i < 30; i++) {
-    if (node.connected) {
+    if (disconnected.every((n) => n.connected)) {
       console.log('[Lavalink] Reconnect successful');
       return true;
     }
-    await new Promise(r => setTimeout(r, 1000));
+    await new Promise((r) => setTimeout(r, 1000));
   }
 
-  console.warn('[Lavalink] Node reconnect timed out, reinitializing...');
-  lavalink.nodeManager.removeAllListeners();
-  lavalink.removeAllListeners();
-  lavalink = null;
-  await init(botClient);
-  return true;
+  const stillDown = disconnected.filter((n) => !n.connected).map((n) => n.id).join(', ');
+  console.warn(`[Lavalink] Reconnect timed out for node(s): ${stillDown} — will retry on next auto-reconnect`);
+  return false;
 }
 
 function startAutoReconnect() {
   if (autoReconnectTimer) clearInterval(autoReconnectTimer);
-  console.log('[Lavalink] Auto-reconnect scheduled every 60 minutes');
+  console.log(`[Lavalink] Auto-reconnect scheduled every ${RECONNECT_CHECK_INTERVAL}ms — when all nodes are down, retry at most every ${RECONNECT_COOLDOWN}ms`);
   autoReconnectTimer = setInterval(async () => {
-    if (!isConnected()) {
-      console.log('[Lavalink] Auto-reconnect trigger: node is down, reconnecting...');
-      try {
-        await reconnect();
-        console.log('[Lavalink] Auto-reconnect completed');
-      } catch (err) {
-        console.error('[Lavalink] Auto-reconnect failed:', err.message);
-      }
+    if (isConnected()) return;
+    if (Date.now() - lastReconnectAttempt < RECONNECT_COOLDOWN) {
+      console.log(`[Lavalink] All nodes down — next auto-reconnect in ${Math.max(0, Math.ceil((RECONNECT_COOLDOWN - (Date.now() - lastReconnectAttempt)) / 1000))}s (or use /reconnect)`);
+      return;
     }
-  }, 3600000);
+    lastReconnectAttempt = Date.now();
+    console.log('[Lavalink] Auto-reconnect trigger: all nodes down, reconnecting...');
+    try {
+      await reconnect();
+    } catch (err) {
+      console.error('[Lavalink] Auto-reconnect failed:', err.message);
+    }
+  }, RECONNECT_CHECK_INTERVAL);
 }
 
 async function init(client) {
   botClient = client;
-  const isExternal = !!process.env.LAVALINK_HOST;
-  const nodeHost = process.env.LAVALINK_HOST || 'localhost';
-  const nodePort = parsePort(process.env.LAVALINK_PORT, isExternal ? 443 : 2333, 'LAVALINK_PORT');
-  const nodeSecure = isExternal ? (process.env.LAVALINK_SECURE !== 'false') : false;
-  const nodeAuthorization = process.env.LAVALINK_PASSWORD || (isExternal ? 'BatuManaBisa' : 'youshallnotpass');
 
-  const nodeOptions = {
-    id: 'main',
-    host: nodeHost,
-    port: nodePort,
-    authorization: nodeAuthorization,
-    secure: nodeSecure,
-    nodeType: isExternal ? NodeType.Lavalink : NodeType.NodeLink,
+  const altNodes = [];
+  for (let i = 1; i <= 10; i++) {
+    const host = process.env[`ALT_LAVALINK_HOST_${i}`];
+    if (!host) continue;
+    const secure = process.env[`ALT_LAVALINK_SECURE_${i}`] !== 'false';
+    altNodes.push({
+      id: process.env[`ALT_LAVALINK_ID_${i}`] || `alt${i}`,
+      host,
+      port: parsePort(process.env[`ALT_LAVALINK_PORT_${i}`], secure ? 443 : 80, `ALT_LAVALINK_PORT_${i}`),
+      authorization: process.env[`ALT_LAVALINK_PASSWORD_${i}`] || process.env.LAVALINK_PASSWORD || 'BatuManaBisa',
+      secure,
+      nodeType: (process.env[`ALT_LAVALINK_TYPE_${i}`] || '').toLowerCase() === 'nodelink' ? NodeType.NodeLink : NodeType.Lavalink,
+      retryAmount: 10,
+      retryDelay: 5000,
+    });
+  }
+
+  const nodes = [];
+
+  // External main node (if configured)
+  if (process.env.LAVALINK_HOST) {
+    nodes.push({
+      id: 'main',
+      host: process.env.LAVALINK_HOST,
+      port: parsePort(process.env.LAVALINK_PORT, process.env.LAVALINK_SECURE === 'false' ? 80 : 443, 'LAVALINK_PORT'),
+      authorization: process.env.LAVALINK_PASSWORD || 'BatuManaBisa',
+      secure: process.env.LAVALINK_SECURE !== 'false',
+      nodeType: NodeType.Lavalink,
+      retryAmount: 10,
+      retryDelay: 5000,
+    });
+  }
+
+  // Alt nodes — failover when main is down
+  nodes.push(...altNodes);
+
+  // Local NodeLink — always added LAST as the bottom fallback node.
+  // If no external nodes are configured, this becomes the only node.
+  nodes.push({
+    id: 'nodelink',
+    host: 'localhost',
+    port: parsePort(process.env.NODELINK_PORT, 2333, 'NODELINK_PORT'),
+    authorization: process.env.NODELINK_PASSWORD || 'youshallnotpass',
+    secure: false,
+    nodeType: NodeType.NodeLink,
     retryAmount: 10,
     retryDelay: 5000,
-  };
+  });
+
+  const usingLocalNodeLink = nodes.length === 1;
+
+  nodePriority = nodes.map((n) => n.id);
+
+  if (altNodes.length) {
+    console.log(`[Lavalink] ${altNodes.length} alt node(s) configured: ${altNodes.map((n) => n.id).join(', ')}`);
+  }
 
   try {
-    console.log('[Lavalink] Node options:', nodeOptions);
+    console.log('[Lavalink] Node options:', nodes);
     lavalink = new LavalinkManager({
-      nodes: [nodeOptions],
+      nodes,
       client: {
         id: client.user.id,
         username: client.user.username,
@@ -174,6 +264,7 @@ async function init(client) {
         defaultSearchPlatform: 'ytmsearch',
         onEmptyQueue: { destroyAfterMs: null },
       },
+      autoMove: false, // manual failover below → prefers main, then alt1..alt5, then nodelink
       autoSkip: true,
       queueOptions: { maxPreviousTracks: 0 },
     });
@@ -184,6 +275,7 @@ async function init(client) {
 
   lavalink.nodeManager.on('connect', (node) => {
     console.log(`[Lavalink] Node "${node.options.id}" connected (${node.options.host}:${node.options.port})`);
+    rebalancePlayers();
   });
 
   lavalink.nodeManager.on('error', (node, error) => {
@@ -192,6 +284,18 @@ async function init(client) {
 
   lavalink.nodeManager.on('disconnect', (node) => {
     console.warn(`[Lavalink] Node "${node.options.id}" disconnected`);
+
+    // Move any players on the dead node to the highest-priority connected node
+    const fallback = getPreferredNodeId();
+    if (!fallback) return;
+    for (const player of lavalink.players.values()) {
+      if (player?.node?.options?.id !== node.options.id) continue;
+      if (player.getData?.('internal_nodeChanging')) continue;
+      player.setData?.('lastNodeChange', Date.now());
+      player.changeNode(fallback).catch((err) => {
+        console.error(`[Lavalink] Failed to move player ${player.guildId} to "${fallback}":`, err.message);
+      });
+    }
   });
 
   lavalink.on('trackStart', (player, track) => {
@@ -209,8 +313,8 @@ async function init(client) {
       };
     }
 
-    // Send now-playing embed to the designated music channel
-    const channelId = botClient?.musicSetup?.[player.guildId];
+    // Send now-playing embed (music channel if set up, otherwise the channel that started playback)
+    const channelId = botClient?.musicSetup?.[player.guildId] || player.textChannelId;
     if (channelId) {
       const channel = botClient.channels.cache.get(channelId);
       if (channel) {
@@ -230,7 +334,9 @@ async function init(client) {
           ])
           .setImage(track.info.artworkUrl)
           .setFooter({ text: `${queue?.songs?.length || 0} songs in queue` });
-        channel.send({ embeds: [embed] }).catch(() => {});
+        channel.send({ embeds: [embed] })
+          .then((msg) => nowPlayingMessages.set(player.guildId, msg))
+          .catch(() => {});
       }
     }
 
@@ -246,6 +352,7 @@ async function init(client) {
   });
 
   lavalink.on('trackEnd', (player, track) => {
+    deleteNowPlaying(player.guildId);
     const playerMod = require('./player');
     const db = require('./db');
     const queue = playerMod.getQueue(player.guildId);
@@ -279,6 +386,7 @@ async function init(client) {
   });
 
   lavalink.on('playerDisconnect', (player) => {
+    deleteNowPlaying(player.guildId);
     clearLeaveTimer(player.guildId);
     const playerMod = require('./player');
     const queue = playerMod.getQueue(player.guildId);
@@ -290,6 +398,7 @@ async function init(client) {
   });
 
   lavalink.on('playerDestroy', (player) => {
+    deleteNowPlaying(player.guildId);
     clearLeaveTimer(player.guildId);
     const playerMod = require('./player');
     const queue = playerMod.getQueue(player.guildId);
@@ -302,10 +411,9 @@ async function init(client) {
   client.on('raw', (packet) => lavalink.sendRawData(packet).catch(() => {}));
 
   lavalink.init(client.user.id);
-  if (!isExternal) {
-    lavalink.utils.SourcesRecord = NodeLinkDefaultSources;
-  }
-  console.log(`[Lavalink] Target: ${isExternal ? process.env.LAVALINK_HOST + ':' + (process.env.LAVALINK_PORT || '443') : 'localhost:2333 (NodeLink)'}`);
+  lavalink.utils.SourcesRecord = NodeLinkDefaultSources;
+  console.log(`[Lavalink] Nodes: ${nodes.map((n) => `${n.id}@${n.host}:${n.port}${n.nodeType === 'NodeLink' ? ' (NodeLink)' : ''}`).join(', ')}`);
+  if (usingLocalNodeLink) console.log('[Lavalink] No external nodes configured — using local NodeLink only');
 
   const waitForNode = process.env.WAIT_FOR_NODE !== 'false';
   if (waitForNode) {
@@ -321,12 +429,8 @@ async function init(client) {
         resolve();
       };
 
-      lavalink.nodeManager.on('connect', (node) => {
-        if (node.options.id === 'main') cleanup();
-      });
-      lavalink.nodeManager.on('ready', (node) => {
-        if (node.options.id === 'main') cleanup();
-      });
+      lavalink.nodeManager.on('connect', () => cleanup());
+      lavalink.nodeManager.on('ready', () => cleanup());
 
       if (isConnected()) cleanup();
     });
@@ -335,4 +439,4 @@ async function init(client) {
   return lavalink;
 }
 
-module.exports = { init, getLavalink: () => lavalink, isConnected, clearLeaveTimer, scheduleLeave, reconnect, startAutoReconnect };
+module.exports = { init, getLavalink: () => lavalink, isConnected, getPreferredNodeId, clearLeaveTimer, scheduleLeave, reconnect, startAutoReconnect };

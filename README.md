@@ -69,14 +69,57 @@ The admin panel will be available at `http://0.0.0.0:13426`.
 | `CLIENT_ID` | Yes | Your application ID |
 | `GUILD_ID` | No | Scope slash commands to one guild (instant registration) |
 | `PREFIX` | No | Command prefix (default: `!`) |
-| `LAVALINK_HOST` | No | External Lavalink server (skips local NodeLink) |
-| `LAVALINK_PORT` | No | Lavalink port (default: 443 external, 2333 local) |
-| `LAVALINK_PASSWORD` | No | Lavalink auth password |
-| `LAVALINK_SECURE` | No | Use WSS (default: true for external) |
+| `LAVALINK_HOST` | No | External Lavalink main node (defaults to local NodeLink if unset) |
+| `LAVALINK_PORT` | No | Main node port (default: 443, or 80 if not secure) |
+| `LAVALINK_PASSWORD` | No | Main node auth password |
+| `LAVALINK_SECURE` | No | Use WSS (default: true) |
+| `ALT_LAVALINK_HOST_1.._10` | No | Alternative (failover) Lavalink nodes, one block per index |
+| `ALT_LAVALINK_PORT_<n>` | No | Alt node port (default: 443, or 80 if not secure) |
+| `ALT_LAVALINK_PASSWORD_<n>` | No | Alt node password (default: `LAVALINK_PASSWORD`) |
+| `ALT_LAVALINK_SECURE_<n>` | No | Alt node WSS (default: true) |
+| `ALT_LAVALINK_TYPE_<n>` | No | Alt node type — `Lavalink` or `NodeLink` (default: `Lavalink`) |
+| `ALT_LAVALINK_ID_<n>` | No | Alt node id (default: `alt<index>`) |
+| `NODELINK_PORT` | No | Local NodeLink port (default: 2333) |
+| `NODELINK_PASSWORD` | No | Local NodeLink auth password (default: youshallnotpass) |
+| `SKIP_NODELINK` | No | Set `true` to not start the local NodeLink fallback |
+| `RECONNECT_COOLDOWN` | No | Auto-reconnect cooldown when all nodes are down, in ms (default: 900000 = 15 min) |
+| `RECONNECT_CHECK_INTERVAL` | No | How often to check for auto-reconnect, in ms (default: 60000) |
 | `WEB_PORT` | No | Admin panel port (default: 13426) |
 | `ADMIN_PASSWORD` | No | Admin panel password (default: admin123) |
 | `SESSION_SECRET` | No | Session encryption key (auto-generated if empty) |
 | `WAIT_FOR_NODE` | No | Set `false` to skip waiting for Lavalink node |
+
+---
+
+## Audio Server & Failover
+
+The bot connects to up to **1 main + 10 alt + 1 local NodeLink** nodes.
+Playback automatically fails over to the next available node when the current one drops.
+
+```
+main  ->  alt1  ->  alt2  ->  ...  ->  alt5  ->  nodelink (bottom fallback)
+```
+
+Nodes are always picked in priority order (main first, then alt1→alt5, then NodeLink).
+On a node disconnect, active players are moved to the highest-priority connected node,
+reconnects try to bring **all** configured nodes back up, and players automatically
+migrate back to `main` (or the next higher-priority node) once it recovers.
+
+When **all** nodes are down, the bot checks every `RECONNECT_CHECK_INTERVAL` and only
+auto-retries after `RECONNECT_COOLDOWN` (default 15 min). Run `/reconnect` (or
+`!reconnect`) anytime to force a reconnect attempt immediately.
+
+- **Main** — set `LAVALINK_HOST` for an external Lavalink server.
+- **Alts** — add one indexed block per backup node:
+  ```
+  ALT_LAVALINK_HOST_1=alt1.example.com
+  ALT_LAVALINK_PORT_1=443
+  ALT_LAVALINK_PASSWORD_1=pass1
+  ALT_LAVALINK_SECURE_1=true
+  ALT_LAVALINK_TYPE_1=Lavalink
+  ALT_LAVALINK_ID_1=alt1
+  ```
+- **NodeLink** — the bundled self-hosted server is always started as the bottom fallback (`node start.js`). If all external nodes are commented out, it becomes the only node. Set `SKIP_NODELINK=true` to disable.
 
 ---
 

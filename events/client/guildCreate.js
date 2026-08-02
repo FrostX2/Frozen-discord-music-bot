@@ -1,4 +1,4 @@
-const { EmbedBuilder, ChannelType, PermissionsBitField } = require("discord.js");
+const { ChannelType, PermissionsBitField } = require("discord.js");
 
 module.exports = {
   name: "guildCreate",
@@ -30,12 +30,8 @@ module.exports = {
           ],
         });
 
-        const embed = new EmbedBuilder()
-          .setColor(client.config.colorDefault || "#00FF00")
-          .setTitle("FuriMusic")
-          .setDescription("Paste the song name or link here\n\n**Support:** YouTube, Spotify, SoundCloud")
-          .setFooter({ text: "FuriMusic — Paste a song name or link to play" });
-        await channel.send({ embeds: [embed] });
+        const { buildIntroEmbed } = require('../../functions/intro');
+        await channel.send({ embeds: [buildIntroEmbed(client)] });
       }
 
       let voice = guild.channels.cache.find(c => c.name === voiceName && c.type === ChannelType.GuildVoice);

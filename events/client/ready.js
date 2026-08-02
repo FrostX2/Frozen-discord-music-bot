@@ -1,4 +1,4 @@
-const { ActivityType, ChannelType, PermissionsBitField, EmbedBuilder } = require("discord.js");
+const { ActivityType, ChannelType, PermissionsBitField } = require("discord.js");
 
 async function ensureMusicChannels(client) {
   const setup = {};
@@ -39,12 +39,8 @@ async function ensureMusicChannels(client) {
             allow: [PermissionsBitField.Flags.ViewChannel, PermissionsBitField.Flags.SendMessages, PermissionsBitField.Flags.ReadMessageHistory],
           }],
         });
-        const embed = new EmbedBuilder()
-          .setColor(client.config.colorDefault || "#00FF00")
-          .setTitle("FuriMusic")
-          .setDescription("Paste the song name or link here\n\n**Support:** YouTube, Spotify, SoundCloud")
-          .setFooter({ text: "FuriMusic — Paste a song name or link to play" });
-        await channel.send({ embeds: [embed] });
+        const { buildIntroEmbed } = require('../../functions/intro');
+        await channel.send({ embeds: [buildIntroEmbed(client)] });
       } catch (err) {
         console.error(`Failed to create text channel in ${guild.name}:`, err.message);
       }
@@ -72,10 +68,47 @@ async function ensureMusicChannels(client) {
   client.musicSetup = setup;
 }
 
+async function clearAndIntroMusicChannels(client) {
+  for (const [guildId, channelId] of Object.entries(client.musicSetup || {})) {
+    const guild = client.guilds.cache.get(guildId);
+    const channel = guild?.channels.cache.get(channelId);
+    if (!channel) continue;
+
+    try {
+      let fetched;
+      do {
+        fetched = await channel.messages.fetch({ limit: 100 });
+        if (!fetched.size) break;
+        const deleted = await channel.bulkDelete([...fetched.keys()], true);
+        if (!deleted.size) break; // remaining messages are too old to bulk-delete
+      } while (fetched.size === 100);
+    } catch (err) {
+      console.error(`Failed to clear music channel in ${guild.name}:`, err.message);
+    }
+
+    try {
+      const { buildIntroEmbed, isIntroMessage } = require('../../functions/intro');
+      let introExists = false;
+      const recent = await channel.messages.fetch({ limit: 10 });
+      for (const msg of recent.values()) {
+        if (isIntroMessage(msg)) {
+          introExists = true;
+          break;
+        }
+      }
+      if (introExists) return;
+
+      await channel.send({ embeds: [buildIntroEmbed(client)] });
+    } catch (err) {
+      console.error(`Failed to send intro in ${guild.name}:`, err.message);
+    }
+  }
+}
+
 async function autoPlayQueues(client) {
   const { getQueue, restoreQueue } = require('../../player');
   const db = require('../../db');
-  const { getLavalink, isConnected } = require('../../lavalink');
+  const { getLavalink, isConnected, getPreferredNodeId } = require('../../lavalink');
 
   for (const guild of client.guilds.cache.values()) {
     const saved = restoreQueue(guild.id);
@@ -118,6 +151,7 @@ async function autoPlayQueues(client) {
         voiceChannelId: voiceChannel.id,
         textChannelId: textChannel?.id || voiceChannel.id,
         volume: queue.volume,
+        node: getPreferredNodeId() || undefined,
       });
       queue.lavalinkPlayer = player;
       queue.textChannel = textChannel;
@@ -149,7 +183,8 @@ module.exports = {
     once: true,
     async execute(client) {
         console.log(`${client.user.tag} is ready!`);
-        ensureMusicChannels(client);
+        await ensureMusicChannels(client);
+        await clearAndIntroMusicChannels(client);
 
         // Wait for music channels to be set up
         await new Promise(r => setTimeout(r, 3000));

@@ -243,10 +243,12 @@ module.exports = {
       const desc = song.type === 'playlist'
         ? `Added **${song.count}** songs from playlist **${song.title}**`
         : `Added [${song.title}](${song.url}) to the queue`;
-      message.reply({ embeds: [new EmbedBuilder().setColor(message.client.config.colorDefault).setDescription(desc)] });
+      await message.reply({ embeds: [new EmbedBuilder().setColor(message.client.config.colorDefault).setDescription(desc)] });
     } catch (err) {
       console.error("Auto-play error:", err);
-      message.reply({ embeds: [new EmbedBuilder().setColor(message.client.config.colorError).setDescription(`Error: ${err.message}`)] }).catch(() => {});
+      await message.reply({ embeds: [new EmbedBuilder().setColor(message.client.config.colorError).setDescription(`Error: ${err.message}`)] }).catch(() => {});
+    } finally {
+      message.delete().catch(() => {});
     }
   },
 };
