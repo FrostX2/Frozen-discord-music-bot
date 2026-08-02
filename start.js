@@ -9,6 +9,19 @@ const envPath = fs.existsSync(secretEnvPath) ? secretEnvPath : localEnvPath;
 require('dotenv').config({ path: envPath });
 
 const { spawn } = require('child_process');
+const net = require('net');
+
+function isPortOpen(host, port, timeout = 1000) {
+  return new Promise((resolve) => {
+    const socket = new net.Socket();
+    const onClose = () => { socket.destroy(); resolve(false); };
+    socket.setTimeout(timeout);
+    socket.once('connect', () => { socket.destroy(); resolve(true); });
+    socket.once('error', onClose);
+    socket.once('timeout', onClose);
+    socket.connect(port, host);
+  });
+}
 
 const NODELINK_SERVER_DIR = path.join(__dirname, 'nodelink', 'server');
 const CONFIG_DEFAULT = path.join(NODELINK_SERVER_DIR, 'config.default.js');
@@ -93,8 +106,22 @@ async function main() {
     console.log('Starting NodeLink...');
     nodelinkProc = startNodeLink();
 
-    await new Promise((resolve) => setTimeout(resolve, 5000));
-    console.log('NodeLink is ready');
+    const port = Number(process.env.NODELINK_PORT || 2333);
+    const host = '127.0.0.1';
+    const deadline = Date.now() + 120000;
+    while (Date.now() < deadline) {
+      if (nodelinkProc.exitCode !== null) {
+        console.error(`NodeLink exited with code ${nodelinkProc.exitCode} before it could listen on port ${port}`);
+        process.exit(1);
+      }
+      if (await isPortOpen(host, port)) break;
+      await new Promise((resolve) => setTimeout(resolve, 1000));
+    }
+    if (Date.now() >= deadline) {
+      console.warn(`NodeLink did not listen on port ${port} within 120s — continuing anyway`);
+    } else {
+      console.log('NodeLink is ready');
+    }
   }
 
   process.on('exit', () => { if (nodelinkProc) nodelinkProc.kill(); });

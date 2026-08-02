@@ -228,18 +228,24 @@ async function init(client) {
   // Alt nodes — failover when main is down
   nodes.push(...altNodes);
 
-  // Local NodeLink — always added LAST as the bottom fallback node.
+  // Local NodeLink — added LAST as the bottom fallback node, unless SKIP_NODELINK=true.
   // If no external nodes are configured, this becomes the only node.
-  nodes.push({
-    id: 'nodelink',
-    host: 'localhost',
-    port: parsePort(process.env.NODELINK_PORT, 2333, 'NODELINK_PORT'),
-    authorization: process.env.NODELINK_PASSWORD || 'youshallnotpass',
-    secure: false,
-    nodeType: NodeType.NodeLink,
-    retryAmount: 10,
-    retryDelay: 5000,
-  });
+  if (process.env.SKIP_NODELINK !== 'true') {
+    nodes.push({
+      id: 'nodelink',
+      host: 'localhost',
+      port: parsePort(process.env.NODELINK_PORT, 2333, 'NODELINK_PORT'),
+      authorization: process.env.NODELINK_PASSWORD || 'youshallnotpass',
+      secure: false,
+      nodeType: NodeType.NodeLink,
+      retryAmount: 10,
+      retryDelay: 5000,
+    });
+  }
+
+  if (nodes.length === 0) {
+    throw new Error('No Lavalink nodes configured: set LAVALINK_HOST or unset SKIP_NODELINK');
+  }
 
   const usingLocalNodeLink = nodes.length === 1;
 
