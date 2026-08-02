@@ -62,7 +62,9 @@ client.config = {
     prefix: process.env.PREFIX || config.prefix || "!",
 };
 
-const functionFolders = fs.readdirSync("./functions");
+const functionFolders = fs
+    .readdirSync("./functions")
+    .filter((entry) => fs.statSync(`./functions/${entry}`).isDirectory());
 for (const folder of functionFolders) {
     const functionFiles = fs
         .readdirSync(`./functions/${folder}`)
