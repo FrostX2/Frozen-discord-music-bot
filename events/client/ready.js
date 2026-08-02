@@ -193,15 +193,8 @@ module.exports = {
         await autoPlayQueues(client);
 
         let activities = [
-                `music with NotFrost`,
-                `${client.user.username}`,
-                `${
-                    client.guilds.cache.size
-                } servers | ${client.guilds.cache.reduce(
-                    (a, b) => a + b.memberCount,
-                    0
-                )} users`,
-                `🐛${client.commands.size} commands!`,
+                `FuriMusic`,
+                `${client.commands.size} commands`,
             ],
             i = 0;
         setInterval(
