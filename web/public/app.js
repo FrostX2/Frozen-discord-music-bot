@@ -96,6 +96,7 @@ const App = {
         const vtag = document.getElementById('versionTag');
         if (vtag && data.version) vtag.textContent = `v${data.version}`;
       } catch {}
+      this.refreshLavalinkNodes();
     };
     poll();
     this.statusInterval = setInterval(poll, 10000);
@@ -147,30 +148,7 @@ const App = {
         </div>
       </div>
 
-      <div class="card">
-        <div class="card-title" style="display:flex;justify-content:space-between;align-items:center">
-          <span>Lavalink Nodes</span>
-          <span style="font-size:12px;color:var(--text-muted)">Active: <strong style="color:${lavalink?.connected ? 'var(--success, #2ecc71)' : 'var(--danger, #e74c3c)'}">${lavalink?.connected ? (lavalink.activeNodeId || '—') : 'Disconnected'}</strong></span>
-        </div>
-        ${lavalink?.nodes?.length ? `
-          <div class="table-wrapper">
-            <table>
-              <thead><tr><th>Node</th><th>Address</th><th>Type</th><th>Players</th><th>Status</th></tr></thead>
-              <tbody>
-                ${lavalink.nodes.map(n => `
-                  <tr>
-                    <td><strong>${n.id}</strong>${n.active ? ' <span class="tag tag-blue">Active</span>' : ''}</td>
-                    <td><code style="font-size:11px;color:var(--text-muted)">${n.host}:${n.port}</code></td>
-                    <td>${n.type}</td>
-                    <td>${n.playingPlayers} <span style="color:var(--text-muted);font-size:11px">/ ${n.players}</span></td>
-                    <td>${n.connected ? '<span class="tag tag-green">Connected</span>' : '<span class="tag tag-red">Disconnected</span>'}</td>
-                  </tr>
-                `).join('')}
-              </tbody>
-            </table>
-          </div>
-        ` : '<p style="color:var(--text-muted)">No nodes configured</p>'}
-      </div>
+      <div class="card" id="lavalinkNodesCard">${this.lavalinkNodesHTML(lavalink)}</div>
 
       <div class="card">
         <div class="card-title">Active Players</div>
@@ -204,6 +182,42 @@ const App = {
         ` : '<p style="color:var(--text-muted)">No active players</p>'}
       </div>
     `;
+  },
+
+  lavalinkNodesHTML(lavalink) {
+    if (!lavalink) return '';
+    return `
+      <div class="card-title" style="display:flex;justify-content:space-between;align-items:center">
+        <span>Lavalink Nodes</span>
+        <span style="font-size:12px;color:var(--text-muted)">Active: <strong style="color:${lavalink.connected ? 'var(--success, #2ecc71)' : 'var(--danger, #e74c3c)'}">${lavalink.connected ? (lavalink.activeNodeId || '—') : 'Disconnected'}</strong></span>
+      </div>
+      ${lavalink.nodes?.length ? `
+        <div class="table-wrapper">
+          <table>
+            <thead><tr><th>Node</th><th>Address</th><th>Type</th><th>Players</th><th>Status</th></tr></thead>
+            <tbody>
+              ${lavalink.nodes.map(n => `
+                <tr>
+                  <td><strong>${n.id}</strong>${n.active ? ' <span class="tag tag-blue">Active</span>' : ''}</td>
+                  <td><code style="font-size:11px;color:var(--text-muted)">${n.host}:${n.port}</code></td>
+                  <td>${n.type}</td>
+                  <td>${n.playingPlayers} <span style="color:var(--text-muted);font-size:11px">/ ${n.players}</span></td>
+                  <td>${n.connected ? '<span class="tag tag-green">Connected</span>' : '<span class="tag tag-red">Disconnected</span>'}</td>
+                </tr>
+              `).join('')}
+            </tbody>
+          </table>
+        </div>
+      ` : '<p style="color:var(--text-muted)">No nodes configured</p>'}
+    `;
+  },
+
+  async refreshLavalinkNodes() {
+    if (this.currentPage !== 'dashboard') return;
+    const card = document.getElementById('lavalinkNodesCard');
+    if (!card) return;
+    const lavalink = await this.fetchJSON('/api/lavalink');
+    if (lavalink) card.innerHTML = this.lavalinkNodesHTML(lavalink);
   },
 
   async renderGuilds(el) {
