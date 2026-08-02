@@ -373,10 +373,11 @@ async function init(client) {
           thumbnail: next.thumbnail,
           formattedDuration: next.formattedDuration,
         };
+        db.saveQueue(player.guildId, queue.songs);
       } else {
         queue.current = null;
+        db.clearQueue(player.guildId);
       }
-      db.saveQueue(player.guildId, queue.songs);
     }
     if (!player.queue.tracks.length && (!player.repeatMode || player.repeatMode === 'off')) {
       scheduleLeave(player.guildId);
