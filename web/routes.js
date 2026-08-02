@@ -254,8 +254,27 @@ router.get('/api/settings', (req, res) => {
 
 router.get('/api/lavalink', (req, res) => {
   const lavalink = require('../lavalink');
+  const lm = lavalink.getLavalink();
   const connected = lavalink.isConnected();
-  res.json({ connected });
+  const activeNodeId = connected ? lavalink.getPreferredNodeId() : null;
+  const nodes = [];
+  if (lm?.nodeManager) {
+    for (const [id, node] of lm.nodeManager.nodes) {
+      const opts = node.options || {};
+      nodes.push({
+        id: opts.id || id,
+        host: opts.host,
+        port: opts.port,
+        type: opts.nodeType === 'NodeLink' ? 'NodeLink' : 'Lavalink',
+        connected: !!node.connected,
+        active: (opts.id || id) === activeNodeId,
+        players: node.stats?.players ?? 0,
+        playingPlayers: node.stats?.playingPlayers ?? 0,
+        uptime: node.stats?.uptime ?? 0,
+      });
+    }
+  }
+  res.json({ connected, activeNodeId, nodes });
 });
 
 module.exports = router;
