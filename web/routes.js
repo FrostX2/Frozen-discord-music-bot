@@ -68,7 +68,7 @@ router.get('/api/status', (req, res) => {
     playingCount,
     activeGuilds,
     lavalinkConnected: ready ? require('../lavalink').isConnected() : false,
-    version: '2.2.0',
+    version: '2.3.0',
   });
 });
 
@@ -248,7 +248,7 @@ router.get('/api/settings', (req, res) => {
   res.json({
     prefix: client.config?.prefix || '!',
     clientId: client.config?.clientId,
-    version: '2.2.0',
+    version: '2.3.0',
   });
 });
 

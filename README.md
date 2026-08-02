@@ -1,16 +1,13 @@
 ﻿<div align="center">
   <img src="https://capsule-render.vercel.app/api?type=waving&color=gradient&height=120&section=header"/>
   
-  # FuriMusic v2.2.0 — NotFrost
+  # FuriMusic v2.3.0 — NotFrost
   ### *Drop beats, not packets*
 
-  [![LOC](https://tokei.rs/b1/github/FrostX2/Frozen-discord-music-bot?category=code)](https://github.com/FrostX2/Frozen-discord-music-bot)
   [![GitHub top language](https://img.shields.io/github/languages/top/FrostX2/Frozen-discord-music-bot?style=for-the-badge&logo=javascript&color=ff69b4)](https://github.com/FrostX2/Frozen-discord-music-bot)
   [![GitHub last commit](https://img.shields.io/github/last-commit/FrostX2/Frozen-discord-music-bot?style=for-the-badge&color=9cf)](https://github.com/FrostX2/Frozen-discord-music-bot)
   [![GitHub license](https://img.shields.io/github/license/FrostX2/Frozen-discord-music-bot?style=for-the-badge&color=success)](https://github.com/FrostX2/Frozen-discord-music-bot)
   [![Visits Badge](https://badges.pufler.dev/visits/FrostX2/Frozen-discord-music-bot?style=for-the-badge)](https://badges.pufler.dev)
-  
-  [![Readme Card](https://github-readme-stats.vercel.app/api/pin/?username=FrostX2&repo=Frozen-discord-music-bot&theme=dracula)](https://github.com/FrostX2/Frozen-discord-music-bot)
 </div>
 
 ---
