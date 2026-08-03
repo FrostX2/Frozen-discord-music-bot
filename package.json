@@ -3,7 +3,6 @@
     "@discordjs/rest": "^1.7.1",
     "axios": "^1.18.0",
     "bcryptjs": "^3.0.3",
-    "better-sqlite3": "^12.11.1",
     "crypto": "^1.0.1",
     "discord.js": "^14.27.0",
     "dotenv": "^17.4.2",
@@ -25,8 +24,5 @@
   "keywords": [],
   "author": "",
   "license": "MIT",
-  "description": "",
-  "allowScripts": {
-    "better-sqlite3@12.11.1": true
-  }
+  "description": ""
 }

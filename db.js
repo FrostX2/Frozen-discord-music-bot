@@ -1,12 +1,14 @@
-const Database = require('better-sqlite3');
+const { DatabaseSync } = require('node:sqlite');
 const path = require('path');
 
 const DB_PATH = path.join(__dirname, 'musicbot.db');
 let db;
 
 function init() {
-  db = new Database(DB_PATH);
-  db.pragma('journal_mode = WAL');
+  db = new DatabaseSync(DB_PATH);
+  // DELETE journal mode -> keeps everything in one .db file (no -wal / -shm sidecars)
+  db.exec('PRAGMA journal_mode = DELETE');
+  db.exec('PRAGMA busy_timeout = 5000');
   db.exec(`
     CREATE TABLE IF NOT EXISTS queue (
       guild_id TEXT PRIMARY KEY,
@@ -76,7 +78,7 @@ function getSetting(guildId, key) {
 function addBot(name, token, clientId, prefix) {
   if (!db) return null;
   const result = db.prepare(`INSERT INTO custom_bots (name, token, client_id, prefix, created_at) VALUES (?, ?, ?, ?, ?)`).run(name, token, clientId, prefix || '!', Date.now());
-  return result.lastInsertRowid;
+  return Number(result.lastInsertRowid);
 }
 
 function getBots() {
