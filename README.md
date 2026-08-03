@@ -1,7 +1,7 @@
 ﻿<div align="center">
   <img src="https://capsule-render.vercel.app/api?type=waving&color=gradient&height=120&section=header"/>
   
-  # FuriMusic v2.3.0 — NotFrost
+  # FuriMusic — NotFrost
   ### *Drop beats, not packets*
 
   [![GitHub top language](https://img.shields.io/github/languages/top/FrostX2/Frozen-discord-music-bot?style=for-the-badge&logo=javascript&color=ff69b4)](https://github.com/FrostX2/Frozen-discord-music-bot)
