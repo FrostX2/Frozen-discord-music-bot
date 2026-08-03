@@ -7,6 +7,7 @@ const App = {
   init() {
     this.bindNav();
     this.bindMenu();
+    this.bindMobileNav();
     this.bindLogout();
     this.navigate('dashboard');
     this.startStatusPolling();
@@ -17,15 +18,31 @@ const App = {
       el.addEventListener('click', (e) => {
         e.preventDefault();
         this.navigate(el.dataset.page);
-        document.querySelector('.sidebar').classList.remove('open');
+        this.closeMenu();
+      });
+    });
+  },
+
+  bindMobileNav() {
+    document.querySelectorAll('.mobile-nav-item').forEach(el => {
+      el.addEventListener('click', (e) => {
+        e.preventDefault();
+        this.navigate(el.dataset.page);
       });
     });
   },
 
   bindMenu() {
     document.getElementById('menuToggle').addEventListener('click', () => {
-      document.querySelector('.sidebar').classList.toggle('open');
+      const open = document.querySelector('.sidebar').classList.toggle('open');
+      document.getElementById('sidebarOverlay').classList.toggle('show', open);
     });
+    document.getElementById('sidebarOverlay').addEventListener('click', () => this.closeMenu());
+  },
+
+  closeMenu() {
+    document.querySelector('.sidebar').classList.remove('open');
+    document.getElementById('sidebarOverlay').classList.remove('show');
   },
 
   bindLogout() {
@@ -40,10 +57,14 @@ const App = {
     document.querySelectorAll('.nav-item').forEach(el => {
       el.classList.toggle('active', el.dataset.page === page);
     });
+    document.querySelectorAll('.mobile-nav-item').forEach(el => {
+      el.classList.toggle('active', el.dataset.page === page);
+    });
     document.getElementById('pageTitle').textContent = this.getPageTitle(page);
     this.stopPlayerPolling();
     this.loadPage(page);
     if (page === 'players') this.startPlayerPolling();
+    window.scrollTo(0, 0);
   },
 
   getPageTitle(page) {
@@ -63,7 +84,7 @@ const App = {
         case 'invite': await this.renderInvite(content); break;
       }
     } catch (err) {
-      content.innerHTML = `<div class="card" style="color:var(--danger)">Error loading page: ${err.message}</div>`;
+      content.innerHTML = `<div class="card" style="color:var(--danger)">Error loading page: ${this.escapeHtml(err.message)}</div>`;
     }
   },
 
@@ -84,17 +105,15 @@ const App = {
       try {
         const data = await this.fetchJSON('/api/status');
         if (!data) return;
-        const dot = document.getElementById('statusDot');
-        const txt = document.getElementById('statusText');
-        if (data.ready) {
-          dot.className = 'status-dot online';
-          txt.textContent = `Online | ${data.guilds} guilds | ${data.latency}ms`;
-        } else {
-          dot.className = 'status-dot offline';
-          txt.textContent = 'Connecting...';
+        const online = !!data.ready;
+        document.querySelectorAll('#statusDot, #topbarDot').forEach(d => {
+          d.className = 'status-dot ' + (online ? 'online' : 'connecting');
+        });
+        document.getElementById('statusText').textContent = online ? `Online · ${data.guilds} servers · ${data.latency}ms` : 'Connecting...';
+        document.getElementById('topbarStatus').textContent = online ? `Online · ${data.latency}ms` : 'Connecting';
+        if (data.version) {
+          document.querySelectorAll('.js-version').forEach(el => { el.textContent = `v${data.version}`; });
         }
-        const vtag = document.getElementById('versionTag');
-        if (vtag && data.version) vtag.textContent = `v${data.version}`;
       } catch {}
       this.refreshLavalinkNodes();
     };
@@ -113,6 +132,7 @@ const App = {
     if (this.playerInterval) { clearInterval(this.playerInterval); this.playerInterval = null; }
   },
 
+  // ===== Dashboard =====
   async renderDashboard(el) {
     const [status, players, lavalink] = await Promise.all([
       this.fetchJSON('/api/status'),
@@ -120,14 +140,26 @@ const App = {
       this.fetchJSON('/api/lavalink')
     ]);
 
+    const nodes = lavalink?.nodes || [];
+    const connectedNodes = nodes.filter(n => n.connected).length;
+    const version = status?.version || '';
+
     el.innerHTML = `
+      <div class="hero">
+        <div>
+          <h2 class="hero-title">Dashboard</h2>
+          <p class="hero-sub">Overview of your music bot across all servers</p>
+        </div>
+        <span class="version-badge js-version">v${version || '&ndash;'}</span>
+      </div>
+
       <div class="stats-grid">
         <div class="stat-card">
           <div class="stat-label">Status</div>
           <div class="stat-value ${status?.ready ? 'green' : 'red'}">${status?.ready ? 'Online' : 'Offline'}</div>
         </div>
         <div class="stat-card">
-          <div class="stat-label">Guilds</div>
+          <div class="stat-label">Servers</div>
           <div class="stat-value blue">${status?.guilds || 0}</div>
         </div>
         <div class="stat-card">
@@ -136,22 +168,30 @@ const App = {
         </div>
         <div class="stat-card">
           <div class="stat-label">Latency</div>
-          <div class="stat-value">${status?.latency || 0}ms</div>
+          <div class="stat-value">${status?.latency || 0}<span style="font-size:14px;font-weight:600;color:var(--text-muted)">ms</span></div>
         </div>
         <div class="stat-card">
           <div class="stat-label">Lavalink</div>
-          <div class="stat-value ${status?.lavalinkConnected ? 'green' : 'red'}">${status?.lavalinkConnected ? 'Connected' : 'Disconnected'}</div>
+          <div class="stat-value ${status?.lavalinkConnected ? 'green' : 'red'}" id="statLavalink">${status?.lavalinkConnected ? 'Connected' : 'Disconnected'}</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">Nodes</div>
+          <div class="stat-value ${connectedNodes ? 'green' : 'red'}" id="statNodes">${connectedNodes}/${nodes.length}</div>
         </div>
         <div class="stat-card">
           <div class="stat-label">Uptime</div>
-          <div class="stat-value">${this.formatUptime(status?.uptime || 0)}</div>
+          <div class="stat-value" style="font-size:20px">${this.formatUptime(status?.uptime || 0)}</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">Version</div>
+          <div class="stat-value purple" id="statVersion">v${version || '&ndash;'}</div>
         </div>
       </div>
 
-      <div class="card" id="lavalinkNodesCard">${this.lavalinkNodesHTML(lavalink)}</div>
+      <div class="card" id="lavalinkNodesCard">${this.nodesCardsHTML(lavalink)}</div>
 
       <div class="card">
-        <div class="card-title">Active Players</div>
+        <div class="card-title"><span>Active Players</span></div>
         ${players?.players?.length ? `
           <div class="table-wrapper">
             <table>
@@ -159,18 +199,18 @@ const App = {
               <tbody>
                 ${players.players.map(p => `
                   <tr>
-                    <td><strong>${p.guildId}</strong></td>
-                    <td>${p.playing ? '<span class="tag tag-green">Playing</span>' : p.paused ? '<span class="tag tag-yellow">Paused</span>' : '<span class="tag tag-red">Stopped</span>'}</td>
-                    <td style="max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${p.current?.title || 'None'}</td>
-                    <td>${p.queueLength}</td>
-                    <td>${p.volume}%</td>
-                    <td>
+                    <td data-label="Guild"><strong>${this.escapeHtml(p.guildId)}</strong></td>
+                    <td data-label="Status">${this.statusTag(p)}</td>
+                    <td data-label="Now Playing" class="td-ellipsis">${p.current?.title ? this.escapeHtml(p.current.title) : 'None'}</td>
+                    <td data-label="Queue">${p.queueLength}</td>
+                    <td data-label="Volume">${p.volume}%</td>
+                    <td data-label="Actions">
                       <div class="player-controls">
                         <button class="ctrl-btn" onclick="App.playerAction('skip','${p.guildId}')" title="Skip">
-                          <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21"/><line x1="19" y1="3" x2="19" y2="21" stroke="currentColor" stroke-width="2"/></svg>
+                          <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21"/><line x1="19" y1="3" x2="19" y2="21" stroke="currentColor" stroke-width="2"/></svg>
                         </button>
                         <button class="ctrl-btn danger" onclick="App.playerAction('stop','${p.guildId}')" title="Stop">
-                          <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><rect x="4" y="4" width="16" height="16" rx="2"/></svg>
+                          <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor"><rect x="4" y="4" width="16" height="16" rx="2"/></svg>
                         </button>
                       </div>
                     </td>
@@ -179,66 +219,91 @@ const App = {
               </tbody>
             </table>
           </div>
-        ` : '<p style="color:var(--text-muted)">No active players</p>'}
+        ` : '<div class="empty-state">No active players</div>'}
       </div>
     `;
   },
 
-  lavalinkNodesHTML(lavalink) {
+  statusTag(p) {
+    if (p.playing) return '<span class="tag tag-green">Playing</span>';
+    if (p.paused) return '<span class="tag tag-yellow">Paused</span>';
+    return '<span class="tag tag-red">Stopped</span>';
+  },
+
+  nodesCardsHTML(lavalink) {
     if (!lavalink) return '';
+    const nodes = lavalink.nodes || [];
+    const connected = nodes.filter(n => n.connected).length;
     return `
-      <div class="card-title" style="display:flex;justify-content:space-between;align-items:center">
+      <div class="card-title">
         <span>Lavalink Nodes</span>
-        <span style="font-size:12px;color:var(--text-muted)">Active: <strong style="color:${lavalink.connected ? 'var(--success, #2ecc71)' : 'var(--danger, #e74c3c)'}">${lavalink.connected ? (lavalink.activeNodeId || '—') : 'Disconnected'}</strong></span>
+        <span class="tag ${connected ? 'tag-green' : 'tag-red'}">${connected}/${nodes.length} Connected</span>
       </div>
-      ${lavalink.nodes?.length ? `
-        <div class="table-wrapper">
-          <table>
-            <thead><tr><th>Node</th><th>Address</th><th>Type</th><th>Players</th><th>Status</th></tr></thead>
-            <tbody>
-              ${lavalink.nodes.map(n => `
-                <tr>
-                  <td><strong>${n.id}</strong>${n.active ? ' <span class="tag tag-blue">Active</span>' : ''}</td>
-                  <td><code style="font-size:11px;color:var(--text-muted)">${n.host}:${n.port}</code></td>
-                  <td>${n.type}</td>
-                  <td>${n.playingPlayers} <span style="color:var(--text-muted);font-size:11px">/ ${n.players}</span></td>
-                  <td>${n.connected ? '<span class="tag tag-green">Connected</span>' : '<span class="tag tag-red">Disconnected</span>'}</td>
-                </tr>
-              `).join('')}
-            </tbody>
-          </table>
+      ${nodes.length ? `
+        <div class="node-grid">
+          ${nodes.map(n => `
+            <div class="node-card ${n.connected ? '' : 'offline'}">
+              <div class="node-head">
+                <span class="status-dot ${n.connected ? 'online' : 'offline'}"></span>
+                <span class="node-name">${this.escapeHtml(n.id)}</span>
+                ${n.active ? '<span class="tag tag-blue">Active</span>' : ''}
+                <span class="tag ${n.connected ? 'tag-green' : 'tag-red'}">${n.connected ? 'Up' : 'Down'}</span>
+              </div>
+              <div class="node-addr">${this.escapeHtml(n.host || '')}:${n.port ?? ''}</div>
+              <div class="node-stats">
+                <span class="node-stat-pill">${n.type === 'NodeLink' ? 'NodeLink' : 'Lavalink'}</span>
+                <span class="node-stat-pill">Playing ${n.playingPlayers}</span>
+                <span class="node-stat-pill">Queue ${n.players}</span>
+                <span class="node-stat-pill">Up ${this.formatUptime(Math.floor((n.uptime || 0) / 1000))}</span>
+              </div>
+            </div>
+          `).join('')}
         </div>
-      ` : '<p style="color:var(--text-muted)">No nodes configured</p>'}
+      ` : '<div class="empty-state">No nodes configured</div>'}
     `;
   },
 
   async refreshLavalinkNodes() {
     if (this.currentPage !== 'dashboard') return;
     const card = document.getElementById('lavalinkNodesCard');
-    if (!card) return;
+    const nodesStat = document.getElementById('statNodes');
+    const lavalinkStat = document.getElementById('statLavalink');
+    if (!card && !nodesStat) return;
     const lavalink = await this.fetchJSON('/api/lavalink');
-    if (lavalink) card.innerHTML = this.lavalinkNodesHTML(lavalink);
+    if (!lavalink) return;
+    if (card) card.innerHTML = this.nodesCardsHTML(lavalink);
+    if (nodesStat) {
+      const nodes = lavalink.nodes || [];
+      const connected = nodes.filter(n => n.connected).length;
+      nodesStat.textContent = `${connected}/${nodes.length}`;
+      nodesStat.className = 'stat-value ' + (connected ? 'green' : 'red');
+    }
+    if (lavalinkStat) {
+      lavalinkStat.textContent = lavalink.connected ? 'Connected' : 'Disconnected';
+      lavalinkStat.className = 'stat-value ' + (lavalink.connected ? 'green' : 'red');
+    }
   },
 
+  // ===== Guilds =====
   async renderGuilds(el) {
     const data = await this.fetchJSON('/api/guilds');
-    if (!data?.guilds) { el.innerHTML = '<div class="card">Failed to load guilds</div>'; return; }
+    if (!data?.guilds) { el.innerHTML = '<div class="card"><div class="empty-state">Failed to load guilds</div></div>'; return; }
 
     el.innerHTML = `
       <div class="card">
-        <div class="card-title">Servers (${data.count})</div>
+        <div class="card-title"><span>Servers</span><span class="tag tag-blue">${data.count}</span></div>
         <div class="table-wrapper">
           <table>
             <thead><tr><th>Icon</th><th>Name</th><th>ID</th><th>Members</th><th>Music Channel</th><th>Actions</th></tr></thead>
             <tbody>
               ${data.guilds.map(g => `
                 <tr>
-                  <td>${g.icon ? `<img src="${g.icon}" width="32" height="32" style="border-radius:50%">` : '<div style="width:32px;height:32px;border-radius:50%;background:var(--bg-tertiary);display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:600;color:var(--accent)">${g.name.charAt(0)}</div>'}</td>
-                  <td><strong>${this.escapeHtml(g.name)}</strong></td>
-                  <td><code style="font-size:11px;color:var(--text-muted)">${g.id}</code></td>
-                  <td>${g.memberCount}</td>
-                  <td>${g.musicChannel ? `<code style="font-size:11px">${g.musicChannel}</code>` : '<span style="color:var(--text-muted)">None</span>'}</td>
-                  <td>
+                  <td data-label="Icon">${g.icon ? `<img src="${g.icon}" width="34" height="34" style="border-radius:50%;object-fit:cover">` : `<div style="width:34px;height:34px;border-radius:50%;background:linear-gradient(135deg,var(--accent),var(--accent-2));display:flex;align-items:center;justify-content:center;font-size:15px;font-weight:700;color:#fff">${this.escapeHtml(g.name.charAt(0).toUpperCase())}</div>`}</td>
+                  <td data-label="Name"><strong>${this.escapeHtml(g.name)}</strong></td>
+                  <td data-label="ID"><code>${this.escapeHtml(g.id)}</code></td>
+                  <td data-label="Members">${g.memberCount}</td>
+                  <td data-label="Music Channel">${g.musicChannel ? `<code>${this.escapeHtml(g.musicChannel)}</code>` : '<span style="color:var(--text-muted)">None</span>'}</td>
+                  <td data-label="Actions">
                     <button class="btn btn-sm btn-ghost" onclick="App.selectedGuild='${g.id}';App.navigate('players')">View Players</button>
                   </td>
                 </tr>
@@ -250,6 +315,7 @@ const App = {
     `;
   },
 
+  // ===== Players =====
   async renderPlayers(el) {
     const [playersData, statusData] = await Promise.all([
       this.fetchJSON('/api/players'),
@@ -267,7 +333,7 @@ const App = {
 
     el.innerHTML = `
       <div class="card">
-        <div class="card-title" style="display:flex;justify-content:space-between;align-items:center">
+        <div class="card-title">
           <span>Active Players</span>
           ${playersData?.players?.length ? `<button class="btn btn-sm btn-danger" onclick="App.clearAllQueues()">Clear All Queues</button>` : ''}
         </div>
@@ -278,19 +344,19 @@ const App = {
               <tbody>
                 ${playersData.players.map(p => `
                   <tr>
-                    <td><strong>${guildMap[p.guildId] || p.guildId}</strong></td>
-                    <td>${p.playing ? '<span class="tag tag-green">Playing</span>' : p.paused ? '<span class="tag tag-yellow">Paused</span>' : '<span class="tag tag-red">Stopped</span>'}</td>
-                    <td style="max-width:220px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${p.current?.title || 'None'}</td>
-                    <td>${p.queueLength}</td>
-                    <td>${p.volume}%</td>
-                    <td>${p.loop ? '<span class="tag tag-blue">On</span>' : 'Off'}</td>
-                    <td>
+                    <td data-label="Guild"><strong>${this.escapeHtml(guildMap[p.guildId] || p.guildId)}</strong></td>
+                    <td data-label="Status">${this.statusTag(p)}</td>
+                    <td data-label="Now Playing" class="td-ellipsis">${p.current?.title ? this.escapeHtml(p.current.title) : 'None'}</td>
+                    <td data-label="Queue">${p.queueLength}</td>
+                    <td data-label="Volume">${p.volume}%</td>
+                    <td data-label="Loop">${p.loop ? '<span class="tag tag-blue">On</span>' : '<span style="color:var(--text-muted)">Off</span>'}</td>
+                    <td data-label="Actions">
                       <div class="player-controls">
                         <button class="ctrl-btn" onclick="App.playerAction('skip','${p.guildId}')" title="Skip">
-                          <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21"/><line x1="19" y1="3" x2="19" y2="21" stroke="currentColor" stroke-width="2"/></svg>
+                          <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21"/><line x1="19" y1="3" x2="19" y2="21" stroke="currentColor" stroke-width="2"/></svg>
                         </button>
                         <button class="ctrl-btn danger" onclick="App.playerAction('stop','${p.guildId}')" title="Stop">
-                          <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><rect x="4" y="4" width="16" height="16" rx="2"/></svg>
+                          <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor"><rect x="4" y="4" width="16" height="16" rx="2"/></svg>
                         </button>
                         <button class="btn btn-sm btn-ghost" onclick="App.selectedGuild='${p.guildId}';App.navigate('players')">Queue</button>
                       </div>
@@ -300,42 +366,42 @@ const App = {
               </tbody>
             </table>
           </div>
-        ` : '<p style="color:var(--text-muted)">No active players</p>'}
+        ` : '<div class="empty-state">No active players</div>'}
       </div>
     `;
   },
 
   async renderPlayerDetail(el, guildId, guildMap) {
     const data = await this.fetchJSON(`/api/players/${guildId}`);
-    if (!data) { el.innerHTML = '<div class="card">Failed to load player</div>'; return; }
+    if (!data) { el.innerHTML = '<div class="card"><div class="empty-state">Failed to load player</div></div>'; return; }
 
     el.innerHTML = `
-      <div style="margin-bottom:16px">
+      <div style="margin-bottom:14px">
         <button class="btn btn-ghost btn-sm" onclick="App.selectedGuild=null;App.navigate('players')">← Back to Players</button>
       </div>
 
       <div class="stats-grid">
         <div class="stat-card">
           <div class="stat-label">Guild</div>
-          <div class="stat-value" style="font-size:16px">${guildMap[guildId] || guildId}</div>
+          <div class="stat-value" style="font-size:17px">${this.escapeHtml(guildMap[guildId] || guildId)}</div>
         </div>
         <div class="stat-card">
           <div class="stat-label">Status</div>
-          <div class="stat-value ${data.playing ? 'green' : data.paused ? 'yellow' : 'red'}" style="font-size:16px">${data.playing ? 'Playing' : data.paused ? 'Paused' : data.connected ? 'Idle' : 'Disconnected'}</div>
+          <div class="stat-value ${data.playing ? 'green' : data.paused ? 'yellow' : 'red'}" style="font-size:17px">${data.playing ? 'Playing' : data.paused ? 'Paused' : data.connected ? 'Idle' : 'Disconnected'}</div>
         </div>
         <div class="stat-card">
           <div class="stat-label">Volume</div>
-          <div class="stat-value" style="font-size:16px">${data.volume}%</div>
+          <div class="stat-value" style="font-size:17px">${data.volume}%</div>
         </div>
         <div class="stat-card">
           <div class="stat-label">Loop</div>
-          <div class="stat-value" style="font-size:16px">${data.loop ? 'On' : 'Off'}</div>
+          <div class="stat-value" style="font-size:17px">${data.loop ? 'On' : 'Off'}</div>
         </div>
       </div>
 
       <div class="card">
         <div class="card-title">Controls</div>
-        <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap">
+        <div style="display:flex;align-items:center;gap:14px;flex-wrap:wrap">
           <div class="player-controls">
             <button class="ctrl-btn" onclick="App.playerAction('back','${guildId}')" title="Previous">
               <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><polygon points="19 20 9 12 19 4"/><line x1="5" y1="19" x2="5" y2="5" stroke="currentColor" stroke-width="2"/></svg>
@@ -356,10 +422,10 @@ const App = {
               <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><rect x="4" y="4" width="16" height="16" rx="2"/></svg>
             </button>
           </div>
-          <div style="display:flex;align-items:center;gap:8px">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--text-secondary)" stroke-width="2"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19"/><path d="M15.54 8.46a5 5 0 0 1 0 7.07"/></svg>
+          <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--text-dim)" stroke-width="2"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19"/><path d="M15.54 8.46a5 5 0 0 1 0 7.07"/></svg>
             <input type="range" class="volume-slider" min="0" max="200" value="${data.volume}" onchange="App.setVolume('${guildId}', this.value)" title="Volume">
-            <span style="font-size:12px;color:var(--text-muted);min-width:32px">${data.volume}%</span>
+            <span style="font-size:12px;color:var(--text-muted);min-width:36px">${data.volume}%</span>
           </div>
           <button class="btn btn-sm ${data.loop ? 'btn-primary' : 'btn-ghost'}" onclick="App.toggleLoop('${guildId}', ${!data.loop})">
             Loop: ${data.loop ? 'On' : 'Off'}
@@ -370,18 +436,18 @@ const App = {
       ${data.current ? `
         <div class="card">
           <div class="card-title">Now Playing</div>
-          <div style="display:flex;gap:16px;align-items:center">
-            ${data.current.thumbnail ? `<img src="${data.current.thumbnail}" width="80" height="80" style="border-radius:8px;object-fit:cover">` : ''}
-            <div>
-              <div style="font-weight:600;font-size:16px">${this.escapeHtml(data.current.title)}</div>
-              <div style="color:var(--text-secondary);font-size:13px;margin-top:4px">${data.current.duration}</div>
+          <div style="display:flex;gap:14px;align-items:center;flex-wrap:wrap">
+            ${data.current.thumbnail ? `<img src="${data.current.thumbnail}" width="80" height="80" style="border-radius:12px;object-fit:cover">` : ''}
+            <div style="min-width:0">
+              <div style="font-weight:700;font-size:16px;word-break:break-word">${this.escapeHtml(data.current.title)}</div>
+              <div style="color:var(--text-dim);font-size:13px;margin-top:4px">${data.current.duration}</div>
             </div>
           </div>
         </div>
       ` : ''}
 
       <div class="card">
-        <div class="card-title" style="display:flex;justify-content:space-between;align-items:center">
+        <div class="card-title">
           <span>Queue (${data.songs.length} songs)</span>
           ${data.songs.length ? `<button class="btn btn-sm btn-danger" onclick="App.clearQueue('${guildId}')">Clear Queue</button>` : ''}
         </div>
@@ -400,24 +466,25 @@ const App = {
               </li>
             `).join('')}
           </ul>
-        ` : '<p style="color:var(--text-muted)">Queue is empty</p>'}
+        ` : '<div class="empty-state">Queue is empty</div>'}
       </div>
 
       <div class="card">
         <div class="card-title">Play a Song</div>
-        <div style="display:flex;gap:8px">
-          <input type="text" id="playQuery" class="input-group" style="flex:1" placeholder="Enter song name or URL...">
+        <div style="display:flex;gap:8px;flex-wrap:wrap">
+          <input type="text" id="playQuery" class="input-group" style="flex:1;min-width:200px" placeholder="Enter song name or URL...">
           <button class="btn btn-primary" onclick="App.playSong('${guildId}')">Play</button>
         </div>
       </div>
     `;
   },
 
+  // ===== Custom Bots =====
   async renderBots(el) {
     const data = await this.fetchJSON('/api/bots');
 
     el.innerHTML = `
-      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
+      <div style="display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:16px">
         <div class="card-title" style="margin-bottom:0">Custom Bots</div>
         <button class="btn btn-primary" onclick="App.showAddBotModal()">+ Add Bot</button>
       </div>
@@ -430,13 +497,13 @@ const App = {
               <tbody>
                 ${data.bots.map(b => `
                   <tr>
-                    <td><strong>${this.escapeHtml(b.name)}</strong></td>
-                    <td><code style="font-size:11px">${b.client_id}</code></td>
-                    <td><code>${b.prefix}</code></td>
-                    <td><span class="tag tag-green">Added</span></td>
-                    <td>${b.active ? '<span class="tag tag-blue">Active</span>' : ''}</td>
-                    <td>
-                      <div style="display:flex;gap:6px">
+                    <td data-label="Name"><strong>${this.escapeHtml(b.name)}</strong></td>
+                    <td data-label="Client ID"><code>${this.escapeHtml(b.client_id)}</code></td>
+                    <td data-label="Prefix"><code>${this.escapeHtml(b.prefix)}</code></td>
+                    <td data-label="Status"><span class="tag tag-green">Added</span></td>
+                    <td data-label="Active">${b.active ? '<span class="tag tag-blue">Active</span>' : '<span style="color:var(--text-muted)">—</span>'}</td>
+                    <td data-label="Actions">
+                      <div style="display:flex;gap:6px;flex-wrap:wrap">
                         ${!b.active ? `<button class="btn btn-sm btn-success" onclick="App.activateBot(${b.id})">Activate</button>` : ''}
                         <button class="btn btn-sm btn-danger" onclick="App.deleteBot(${b.id})">Delete</button>
                       </div>
@@ -446,19 +513,20 @@ const App = {
               </tbody>
             </table>
           </div>
-        ` : '<p style="color:var(--text-muted)">No custom bots added yet. Click "Add Bot" to add one.</p>'}
+        ` : '<div class="empty-state">No custom bots added yet. Click "Add Bot" to add one.</div>'}
       </div>
 
       <div class="card">
         <div class="card-title">How Custom Bots Work</div>
-        <p style="color:var(--text-secondary);font-size:13px;line-height:1.6">
-          Add your own bot tokens here. Each bot needs a <strong>name</strong>, <strong>token</strong>, and <strong>Client ID</strong> from the <a href="https://discord.com/developers/applications" target="_blank" style="color:var(--accent)">Discord Developer Portal</a>.
+        <p style="color:var(--text-dim);font-size:13px;line-height:1.7">
+          Add your own bot tokens here. Each bot needs a <strong>name</strong>, <strong>token</strong>, and <strong>Client ID</strong> from the <a href="https://discord.com/developers/applications" target="_blank" rel="noopener" style="color:var(--accent)">Discord Developer Portal</a>.
           You can activate one custom bot at a time. The active bot will be stored in the database for reference.
         </p>
       </div>
     `;
   },
 
+  // ===== Invite =====
   async renderInvite(el) {
     const data = await this.fetchJSON('/api/invite');
     const settings = await this.fetchJSON('/api/settings');
@@ -466,11 +534,11 @@ const App = {
     el.innerHTML = `
       <div class="card">
         <div class="card-title">Invite ${settings?.clientId ? 'Current Bot' : 'Bot'}</div>
-        <p style="color:var(--text-secondary);font-size:13px;margin-bottom:12px">
+        <p style="color:var(--text-dim);font-size:13px;margin-bottom:14px">
           Click the button below to invite the bot to your Discord server, or copy the link.
         </p>
         <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px">
-          <a href="${data?.url || '#'}" target="_blank" class="btn btn-primary">Open Invite Link</a>
+          <a href="${data?.url || '#'}" target="_blank" rel="noopener" class="btn btn-primary">Open Invite Link</a>
           <button class="btn btn-ghost" onclick="navigator.clipboard.writeText('${data?.url || ''}');App.toast('Link copied!','success')">Copy Link</button>
         </div>
         <div class="invite-box">${data?.url || 'N/A'}</div>
@@ -478,18 +546,18 @@ const App = {
 
       <div class="card">
         <div class="card-title">Permissions Included</div>
-        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:8px;font-size:13px;color:var(--text-secondary)">
-          <div>✓ Send Messages</div>
-          <div>✓ Connect to Voice</div>
-          <div>✓ Speak in Voice</div>
-          <div>✓ Use Voice Activity</div>
-          <div>✓ Slash Commands</div>
+        <div class="perms-grid">
+          <div><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg>Send Messages</div>
+          <div><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg>Connect to Voice</div>
+          <div><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg>Speak in Voice</div>
+          <div><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg>Use Voice Activity</div>
+          <div><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg>Slash Commands</div>
         </div>
       </div>
 
       <div class="card">
         <div class="card-title">Custom Bot Invite</div>
-        <p style="color:var(--text-secondary);font-size:13px;margin-bottom:12px">
+        <p style="color:var(--text-dim);font-size:13px;margin-bottom:14px">
           To invite a custom bot, go to the <a href="/bots" onclick="App.navigate('bots');return false" style="color:var(--accent)">Custom Bots</a> page, add your bot, then use this URL format:
         </p>
         <div class="invite-box">https://discord.com/api/oauth2/authorize?client_id=<strong>YOUR_CLIENT_ID</strong>&permissions=379968&scope=bot%20applications.commands</div>
@@ -497,7 +565,7 @@ const App = {
     `;
   },
 
-  // Actions
+  // ===== Actions =====
   async playerAction(action, guildId) {
     try {
       await this.fetchJSON(`/api/player/${action}`, {
@@ -640,14 +708,16 @@ const App = {
     this.loadPage('bots');
   },
 
-  // Utils
+  // ===== Utils =====
   formatUptime(seconds) {
+    seconds = Math.max(0, Math.floor(seconds || 0));
     const d = Math.floor(seconds / 86400);
     const h = Math.floor((seconds % 86400) / 3600);
     const m = Math.floor((seconds % 3600) / 60);
     if (d > 0) return `${d}d ${h}h`;
     if (h > 0) return `${h}h ${m}m`;
-    return `${m}m`;
+    if (m > 0) return `${m}m ${seconds % 60}s`;
+    return `${seconds}s`;
   },
 
   escapeHtml(str) {

@@ -6,6 +6,7 @@ const crypto = require('crypto');
 
 const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || 'admin123';
 const SESSION_SECRET = process.env.SESSION_SECRET || crypto.randomBytes(32).toString('hex');
+const BOT_VERSION = require('../package.json').version;
 
 const router = express.Router();
 
@@ -43,13 +44,7 @@ router.post('/api/logout', (req, res) => {
   res.json({ ok: true });
 });
 
-router.use(requireAuth);
-
-router.get('/', (req, res) => {
-  res.sendFile(path.join(__dirname, 'views', 'dashboard.html'));
-});
-
-// Public API (no auth required, for the bot status page)
+// Public API (no auth required, for the bot status page / login screen)
 router.get('/api/status', (req, res) => {
   const client = req.app.get('client');
   const ready = client?.isReady?.();
@@ -68,8 +63,14 @@ router.get('/api/status', (req, res) => {
     playingCount,
     activeGuilds,
     lavalinkConnected: ready ? require('../lavalink').isConnected() : false,
-    version: '2.3.0',
+    version: BOT_VERSION,
   });
+});
+
+router.use(requireAuth);
+
+router.get('/', (req, res) => {
+  res.sendFile(path.join(__dirname, 'views', 'dashboard.html'));
 });
 
 router.get('/api/guilds', (req, res) => {
@@ -248,7 +249,7 @@ router.get('/api/settings', (req, res) => {
   res.json({
     prefix: client.config?.prefix || '!',
     clientId: client.config?.clientId,
-    version: '2.3.0',
+    version: BOT_VERSION,
   });
 });
 
