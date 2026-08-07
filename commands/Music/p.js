@@ -1,4 +1,5 @@
-const { EmbedBuilder, SlashCommandBuilder } = require("discord.js");
+const { SlashCommandBuilder } = require("discord.js");
+const ui = require("../../functions/ui");
 
 module.exports = {
   category: "Music",
@@ -17,7 +18,7 @@ module.exports = {
 
     if (!voiceChannel) {
       return interaction.reply({
-        embeds: [new EmbedBuilder().setColor(client.config.colorError).setDescription("You must be in a voice channel!")],
+        embeds: [ui.buildNotice(client, "You must be in a voice channel!", { error: true })],
         ephemeral: true,
       });
     }
@@ -26,21 +27,22 @@ module.exports = {
       interaction.guild.members.me.voice.channelId !== interaction.member.voice.channelId
     ) {
       return interaction.reply({
-        embeds: [new EmbedBuilder().setColor(client.config.colorError).setDescription("You need to be on the same voice channel as the Bot!")],
+        embeds: [ui.buildNotice(client, "You need to be on the same voice channel as the Bot!", { error: true })],
         ephemeral: true,
       });
     }
 
-    await interaction.reply({ embeds: [new EmbedBuilder().setColor(client.config.colorDefault).setDescription("Looking for song...")], ephemeral: true });
+    const started = Date.now();
+    await interaction.deferReply({ ephemeral: true });
 
     try {
       const song = await client.player.play(interaction.channel, voiceChannel, keyword, interaction.member);
-      const desc = song.type === 'playlist'
-        ? `Added **${song.count}** songs from playlist **${song.title}**`
-        : `Added [${song.title}](${song.url}) to the queue`;
-      await interaction.editReply({ embeds: [new EmbedBuilder().setColor(client.config.colorDefault).setDescription(desc)] });
+      const embed = song.type === 'playlist' ? ui.buildAddedPlaylist(client, song) : ui.buildAdded(client, song);
+      await ui.waitUntil(started);
+      await interaction.editReply({ embeds: [embed] });
     } catch (err) {
-      await interaction.editReply({ embeds: [new EmbedBuilder().setColor(client.config.colorError).setDescription(`Error: ${err.message}`)] });
+      await ui.waitUntil(started);
+      await interaction.editReply({ embeds: [ui.buildNotice(client, `Error: ${err.message}`, { error: true })] });
     }
   },
 };

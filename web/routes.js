@@ -4,6 +4,7 @@ const bcrypt = require('bcryptjs');
 const path = require('path');
 const crypto = require('crypto');
 
+const ADMIN_USERNAME = process.env.ADMIN_USERNAME || 'admin';
 const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || 'admin123';
 const SESSION_SECRET = process.env.SESSION_SECRET || crypto.randomBytes(32).toString('hex');
 const BOT_VERSION = require('../package.json').version;
@@ -25,18 +26,18 @@ function requireAuth(req, res, next) {
 }
 
 router.get('/login', (req, res) => {
-  if (req.session && req.session.authenticated) return res.redirect('/');
+  if (req.session && req.session.authenticated) return res.redirect('/admin');
   res.sendFile(path.join(__dirname, 'views', 'login.html'));
 });
 
 router.post('/api/login', (req, res) => {
-  const { password, remember } = req.body;
-  if (password === ADMIN_PASSWORD) {
+  const { username, password, remember } = req.body;
+  if (username === ADMIN_USERNAME && password === ADMIN_PASSWORD) {
     req.session.authenticated = true;
     if (remember) req.session.cookie.maxAge = 365 * 24 * 60 * 60 * 1000;
     return res.json({ ok: true });
   }
-  res.status(401).json({ error: 'wrong password' });
+  res.status(401).json({ error: 'invalid credentials' });
 });
 
 router.post('/api/logout', (req, res) => {
@@ -44,7 +45,7 @@ router.post('/api/logout', (req, res) => {
   res.json({ ok: true });
 });
 
-// Public API (no auth required, for the bot status page / login screen)
+// Public API (no auth required, for the public status page)
 router.get('/api/status', (req, res) => {
   const client = req.app.get('client');
   const ready = client?.isReady?.();
@@ -61,15 +62,23 @@ router.get('/api/status', (req, res) => {
     latency: client?.ws?.ping || 0,
     playing: playingCount > 0,
     playingCount,
-    activeGuilds,
+    activeGuilds: activeGuilds.map(g => ({
+      ...g,
+      name: client?.guilds?.cache?.get(g.guildId)?.name || g.guildId,
+    })),
     lavalinkConnected: ready ? require('../lavalink').isConnected() : false,
     version: BOT_VERSION,
   });
 });
 
+// Public status page — no login required
+router.get('/', (req, res) => {
+  res.sendFile(path.join(__dirname, 'views', 'status.html'));
+});
+
 router.use(requireAuth);
 
-router.get('/', (req, res) => {
+router.get('/admin', (req, res) => {
   res.sendFile(path.join(__dirname, 'views', 'dashboard.html'));
 });
 
@@ -258,23 +267,73 @@ router.get('/api/lavalink', (req, res) => {
   const lm = lavalink.getLavalink();
   const connected = lavalink.isConnected();
   const activeNodeId = connected ? lavalink.getPreferredNodeId() : null;
+
+  const seen = new Set();
   const nodes = [];
+
+  // Live node list from the Lavalink manager (if initialized)
   if (lm?.nodeManager) {
     for (const [id, node] of lm.nodeManager.nodes) {
       const opts = node.options || {};
+      const nodeId = opts.id || id;
+      seen.add(nodeId);
       nodes.push({
-        id: opts.id || id,
+        id: nodeId,
         host: opts.host,
         port: opts.port,
         type: opts.nodeType === 'NodeLink' ? 'NodeLink' : 'Lavalink',
         connected: !!node.connected,
-        active: (opts.id || id) === activeNodeId,
+        active: nodeId === activeNodeId,
         players: node.stats?.players ?? 0,
         playingPlayers: node.stats?.playingPlayers ?? 0,
         uptime: node.stats?.uptime ?? 0,
       });
     }
   }
+
+  // Always show every configured node — missing/offline ones appear as Down
+  const configured = [];
+  if (process.env.LAVALINK_HOST) {
+    configured.push({
+      id: 'main',
+      host: process.env.LAVALINK_HOST,
+      port: process.env.LAVALINK_PORT || (process.env.LAVALINK_SECURE === 'false' ? 80 : 443),
+      type: 'Lavalink',
+    });
+  }
+  for (let i = 1; i <= 10; i++) {
+    if (!process.env[`ALT_LAVALINK_HOST_${i}`]) continue;
+    configured.push({
+      id: process.env[`ALT_LAVALINK_ID_${i}`] || `alt${i}`,
+      host: process.env[`ALT_LAVALINK_HOST_${i}`],
+      port: process.env[`ALT_LAVALINK_PORT_${i}`] || 443,
+      type: (process.env[`ALT_LAVALINK_TYPE_${i}`] || '').toLowerCase() === 'nodelink' ? 'NodeLink' : 'Lavalink',
+    });
+  }
+  if (process.env.SKIP_NODELINK !== 'true') {
+    configured.push({
+      id: 'nodelink',
+      host: 'localhost',
+      port: process.env.NODELINK_PORT || 2333,
+      type: 'NodeLink',
+    });
+  }
+
+  for (const node of configured) {
+    if (seen.has(node.id)) continue;
+    nodes.push({
+      id: node.id,
+      host: node.host,
+      port: node.port,
+      type: node.type,
+      connected: false,
+      active: false,
+      players: 0,
+      playingPlayers: 0,
+      uptime: 0,
+    });
+  }
+
   res.json({ connected, activeNodeId, nodes });
 });
 

@@ -1,4 +1,5 @@
-const { EmbedBuilder, SlashCommandBuilder } = require("discord.js");
+const { SlashCommandBuilder } = require("discord.js");
+const ui = require("../../functions/ui");
 
 module.exports = {
     category: "Music",
@@ -12,11 +13,7 @@ module.exports = {
         if (!voiceChannel) {
             return interaction.reply({
                 embeds: [
-                    new EmbedBuilder()
-                        .setColor(client.config.colorError)
-                        .setDescription(
-                            `🚫 | You must be in a voice channel to use this command!`
-                        ),
+                    ui.buildNotice(client, "You must be in a voice channel to use this command!", { error: true }),
                 ],
             });
         }
@@ -26,29 +23,13 @@ module.exports = {
         ) {
             return interaction.reply({
                 embeds: [
-                    new EmbedBuilder()
-                        .setColor(client.config.colorError)
-                        .setDescription(
-                            `🚫 | You need to be on the same voice channel as the Bot!`
-                        ),
+                    ui.buildNotice(client, "You need to be on the same voice channel as the Bot!", { error: true }),
                 ],
             });
         }
 
-        const q = queue.songs
-            .map(
-                (song, i) =>
-                    `${i === 0 ? "Playing:" : `${i}.`} ${song.name} - \`${
-                        song.formattedDuration
-                    }\``
-            )
-            .join("\n");
-
         const tracks = queue.songs.map(
-            (song, i) => `**${i + 1}** - [${song.name}](${song.url}) | ${
-                song.formattedDuration
-            }
-        Request by: ${song.user}`
+            (song, i) => `**${i + 1}** - [${song.name}](${song.url}) | ${song.formattedDuration}\nRequest by: ${song.user}`
         );
 
         const songs = queue.songs.length;
@@ -57,35 +38,25 @@ module.exports = {
                 ? `And **${songs - 10}** songs...`
                 : `Playlist **${songs}** songs...`;
 
-        interaction.reply({
-            embeds: [
-                new EmbedBuilder()
-                    .setColor(client.config.colorDefault)
-                    .setAuthor({
-                        name: "Queue",
-                        iconURL: client.user.displayAvatarURL(),
-                    })
-                    .setDescription(
-                        `${tracks.slice(0, 10).join("\n")}\n\n${nextSongs}`
-                    )
-                    .addFields([
-                        {
-                            name: "> Playing:",
-                            value: `[${queue.songs[0].name}](${queue.songs[0].url}) - ${queue.songs[0].formattedDuration} | Request by bởi: ${queue.songs[0].user}`,
-                            inline: true,
-                        },
-                        {
-                            name: "> Total times:",
-                            value: `${queue.formattedDuration}`,
-                            inline: true,
-                        },
-                        {
-                            name: "> Total songs:",
-                            value: `${songs}`,
-                            inline: true,
-                        },
-                    ]),
-            ],
-        });
+        const embed = ui.buildNotice(client, `${tracks.slice(0, 10).join("\n")}\n\n${nextSongs}`, { title: "Queue" })
+            .addFields([
+                {
+                    name: "> Playing:",
+                    value: `[${queue.songs[0].name}](${queue.songs[0].url}) - ${queue.songs[0].formattedDuration} | Request by: ${queue.songs[0].user}`,
+                    inline: true,
+                },
+                {
+                    name: "> Total times:",
+                    value: `${queue.formattedDuration}`,
+                    inline: true,
+                },
+                {
+                    name: "> Total songs:",
+                    value: `${songs}`,
+                    inline: true,
+                },
+            ]);
+
+        interaction.reply({ embeds: [embed] });
     },
 };

@@ -1,4 +1,5 @@
-const { EmbedBuilder, SlashCommandBuilder } = require("discord.js");
+const { SlashCommandBuilder } = require("discord.js");
+const ui = require("../../functions/ui");
 
 module.exports = {
     category: "Music",
@@ -12,11 +13,7 @@ module.exports = {
         if (!voiceChannel) {
             return interaction.reply({
                 embeds: [
-                    new EmbedBuilder()
-                        .setColor(client.config.colorError)
-                        .setDescription(
-                            `🚫 | You must be in a voice channel to use this command!`
-                        ),
+                    ui.buildNotice(client, "You must be in a voice channel to use this command!", { error: true }),
                 ],
             });
         }
@@ -26,25 +23,15 @@ module.exports = {
         ) {
             return interaction.reply({
                 embeds: [
-                    new EmbedBuilder()
-                        .setColor(client.config.colorError)
-                        .setDescription(
-                            `🚫 | You need to be on the same voice channel as the Bot!`
-                        ),
+                    ui.buildNotice(client, "You need to be on the same voice channel as the Bot!", { error: true }),
                 ],
             });
         }
 
         queue.resume();
-        const msg = await interaction.reply({
+        await interaction.reply({
             embeds: [
-                new EmbedBuilder()
-                    .setColor(client.config.colorDefault)
-                    .setAuthor({
-                        name: "Resume",
-                        iconURL: client.user.displayAvatarURL(),
-                    })
-                    .setDescription(`⏯️ | Resume playing current song!`),
+                ui.buildNotice(client, "Resume playing current song!", { title: "Resume" }),
             ],
         });
     },

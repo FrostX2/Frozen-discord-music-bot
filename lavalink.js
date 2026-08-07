@@ -324,22 +324,10 @@ async function init(client) {
     if (channelId) {
       const channel = botClient.channels.cache.get(channelId);
       if (channel) {
-        const { EmbedBuilder } = require('discord.js');
-        const repeatMode = player.repeatMode;
-        const repeatLabel = repeatMode === 'queue' ? "List" : repeatMode === 'track' ? "Song" : "Off";
-        const status = `Volume: \`${player.volume}%\` | Repeat: \`${repeatLabel}\``;
-        const embed = new EmbedBuilder()
-          .setColor(botClient.config.colorDefault || 0x2B2D31)
-          .setAuthor({ name: "Now Playing", iconURL: botClient.user.displayAvatarURL() })
-          .setDescription(`[${track.info.title}](${track.info.uri})`)
-          .addFields([
-            { name: "Status", value: status, inline: false },
-            { name: "Duration", value: `${fmt(player.position)} / ${fmt(track.info.duration)}`, inline: true },
-            { name: "Author", value: track.info.author || "Unknown", inline: true },
-            { name: "Request by", value: track.userData?.requester?.toString() || queue?.current?.member?.toString() || "Unknown", inline: true },
-          ])
-          .setImage(track.info.artworkUrl)
-          .setFooter({ text: `${queue?.songs?.length || 0} songs in queue` });
+        // If an embed already exists, clear it silently before sending the new one
+        deleteNowPlaying(player.guildId);
+        const ui = require('./functions/ui');
+        const embed = ui.buildNowPlaying(botClient, { track, queue, player });
         channel.send({ embeds: [embed] })
           .then((msg) => nowPlayingMessages.set(player.guildId, msg))
           .catch(() => {});

@@ -1,4 +1,5 @@
-const { EmbedBuilder, SlashCommandBuilder } = require("discord.js");
+const { SlashCommandBuilder } = require("discord.js");
+const ui = require("../../functions/ui");
 
 module.exports = {
     category: "Music",
@@ -12,18 +13,14 @@ module.exports = {
         if (!voiceChannel) {
             return interaction.reply({
                 embeds: [
-                    new EmbedBuilder()
-                        .setColor(client.config.colorError)
-                        .setDescription("You must be in a voice channel to use this command!"),
+                    ui.buildNotice(client, "You must be in a voice channel to use this command!", { error: true }),
                 ],
             });
         }
         if (interaction.guild.members.me.voice.channelId !== interaction.member.voice.channelId) {
             return interaction.reply({
                 embeds: [
-                    new EmbedBuilder()
-                        .setColor(client.config.colorError)
-                        .setDescription("You need to be on the same voice channel as the Bot!"),
+                    ui.buildNotice(client, "You need to be on the same voice channel as the Bot!", { error: true }),
                 ],
             });
         }
@@ -31,17 +28,13 @@ module.exports = {
             await client.distube.previous(interaction);
             await interaction.reply({
                 embeds: [
-                    new EmbedBuilder()
-                        .setColor(client.config.colorDefault)
-                        .setDescription("Previous song!"),
+                    ui.buildNotice(client, "Previous song!", { title: "Back" }),
                 ],
             });
         } catch (err) {
             await interaction.reply({
                 embeds: [
-                    new EmbedBuilder()
-                        .setColor(client.config.colorError)
-                        .setDescription("Cannot go back to previous song!"),
+                    ui.buildNotice(client, "Cannot go back to previous song!", { error: true, title: "Back" }),
                 ],
                 ephemeral: true,
             });

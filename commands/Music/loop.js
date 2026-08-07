@@ -1,4 +1,5 @@
-const { EmbedBuilder, SlashCommandBuilder } = require("discord.js");
+const { SlashCommandBuilder } = require("discord.js");
+const ui = require("../../functions/ui");
 
 module.exports = {
     category: "Music",
@@ -34,11 +35,7 @@ module.exports = {
         if (!voiceChannel) {
             return interaction.reply({
                 embeds: [
-                    new EmbedBuilder()
-                        .setColor(client.config.colorError)
-                        .setDescription(
-                            `🚫 | You must be in a voice channel to use this command!`
-                        ),
+                    ui.buildNotice(client, "You must be in a voice channel to use this command!", { error: true }),
                 ],
             });
         }
@@ -48,11 +45,7 @@ module.exports = {
         ) {
             return interaction.reply({
                 embeds: [
-                    new EmbedBuilder()
-                        .setColor(client.config.colorError)
-                        .setDescription(
-                            `🚫 | You need to be on the same voice channel as the Bot!`
-                        ),
+                    ui.buildNotice(client, "You need to be on the same voice channel as the Bot!", { error: true }),
                 ],
             });
         }
@@ -61,39 +54,21 @@ module.exports = {
             queue.setRepeatMode(0);
             interaction.reply({
                 embeds: [
-                    new EmbedBuilder()
-                        .setColor(client.config.colorError)
-                        .setAuthor({
-                            name: "Repeat mode",
-                            iconURL: client.user.displayAvatarURL(),
-                        })
-                        .setDescription(`🔁 | Repeat mode is now off!`),
+                    ui.buildNotice(client, "Repeat mode is now off!", { title: "Loop" }),
                 ],
             });
         } else if (loop === "Repeat the song") {
             queue.setRepeatMode(1);
             interaction.reply({
                 embeds: [
-                    new EmbedBuilder()
-                        .setColor(client.config.colorDefault)
-                        .setAuthor({
-                            name: "Repeat mode",
-                            iconURL: client.user.displayAvatarURL(),
-                        })
-                        .setDescription(`🔁 | Song loop mode is on!!`),
+                    ui.buildNotice(client, "Song loop mode is on!", { title: "Loop" }),
                 ],
             });
         } else if (loop === "Repeat song list") {
             queue.setRepeatMode(2);
             interaction.reply({
                 embeds: [
-                    new EmbedBuilder()
-                        .setColor(client.config.colorDefault)
-                        .setAuthor({
-                            name: "Repeat mode",
-                            iconURL: client.user.displayAvatarURL(),
-                        })
-                        .setDescription(`🔁 | Playlist looping is enabled!!`),
+                    ui.buildNotice(client, "Playlist looping is enabled!", { title: "Loop" }),
                 ],
             });
         }

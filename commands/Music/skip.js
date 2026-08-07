@@ -1,4 +1,5 @@
-const { EmbedBuilder, SlashCommandBuilder } = require("discord.js");
+const { SlashCommandBuilder } = require("discord.js");
+const ui = require("../../functions/ui");
 
 module.exports = {
     category: "Music",
@@ -19,11 +20,7 @@ module.exports = {
         if (!voiceChannel) {
             return interaction.reply({
                 embeds: [
-                    new EmbedBuilder()
-                        .setColor(client.config.colorError)
-                        .setDescription(
-                            `🚫 | You must be in a voice channel to use this command!`
-                        ),
+                    ui.buildNotice(client, "You must be in a voice channel to use this command!", { error: true }),
                 ],
             });
         }
@@ -33,11 +30,7 @@ module.exports = {
         ) {
             return interaction.reply({
                 embeds: [
-                    new EmbedBuilder()
-                        .setColor(client.config.colorError)
-                        .setDescription(
-                            `🚫 | You need to be on the same voice channel as the Bot!`
-                        ),
+                    ui.buildNotice(client, "You need to be on the same voice channel as the Bot!", { error: true }),
                 ],
             });
         }
@@ -46,11 +39,9 @@ module.exports = {
 
         if (!id) {
             queue.skip();
-            const msg = await interaction.reply({
+            await interaction.reply({
                 embeds: [
-                    new EmbedBuilder()
-                        .setColor(client.config.colorDefault)
-                        .setDescription(`⏩ | Skipped!`),
+                    ui.buildNotice(client, "Skipped!", { title: "Skip" }),
                 ],
             });
         }
@@ -61,21 +52,13 @@ module.exports = {
                 const songSkip = queue.songs[parseInt(id - 1)];
                 await interaction.reply({
                     embeds: [
-                        new EmbedBuilder()
-                            .setColor(client.config.colorDefault)
-                            .setDescription(
-                                `⏩ | Moved to song with ID: ${id}: **${songSkip.name}**!`
-                            ),
+                        ui.buildNotice(client, `Moved to song with ID: ${id}: **${songSkip.name}**!`, { title: "Skip" }),
                     ],
                 });
             } catch (err) {
                 await interaction.reply({
                     embeds: [
-                        new EmbedBuilder()
-                            .setColor(client.config.colorError)
-                            .setDescription(
-                                `🚫 | Songs with ID not found: ${id}!`
-                            ),
+                        ui.buildNotice(client, `Songs with ID not found: ${id}!`, { error: true, title: "Skip" }),
                     ],
                     ephemeral: true,
                 });

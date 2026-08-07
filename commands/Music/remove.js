@@ -1,4 +1,5 @@
-const { EmbedBuilder, SlashCommandBuilder } = require("discord.js");
+const { SlashCommandBuilder } = require("discord.js");
+const ui = require("../../functions/ui");
 
 module.exports = {
     category: "Music",
@@ -20,11 +21,7 @@ module.exports = {
             if (!voiceChannel) {
                 return interaction.reply({
                     embeds: [
-                        new EmbedBuilder()
-                            .setColor(client.config.colorError)
-                            .setDescription(
-                                `🚫 | You must be in a voice channel to use this command!`
-                            ),
+                        ui.buildNotice(client, "You must be in a voice channel to use this command!", { error: true }),
                     ],
                 });
             }
@@ -34,40 +31,23 @@ module.exports = {
             ) {
                 return interaction.reply({
                     embeds: [
-                        new EmbedBuilder()
-                            .setColor(client.config.colorError)
-                            .setDescription(
-                                `🚫 | You need to be on the same voice channel as the Bot!`
-                            ),
+                        ui.buildNotice(client, "You need to be on the same voice channel as the Bot!", { error: true }),
                     ],
                 });
             }
             if (!queue) {
                 return interaction.reply({
                     embeds: [
-                        new EmbedBuilder()
-                            .setColor(client.config.colorError)
-                            .setDescription(
-                                `🚫 | There are no songs in the playlist!`
-                            ),
+                        ui.buildNotice(client, "There are no songs in the playlist!", { error: true }),
                     ],
                 });
             }
 
             const id = interaction.options.getNumber("id");
-            // let track = queue.songs[args[0]];
             let song = queue.songs.splice(id - 1, 1);
             const msg = await queue.textChannel.send({
                 embeds: [
-                    new EmbedBuilder()
-                        .setColor(client.config.colorDefault)
-                        .setAuthor({
-                            name: "Removed song",
-                            iconURL: client.user.displayAvatarURL(),
-                        })
-                        .setDescription(
-                            `🎵 | Removed ${song[0].name} from the playlist!`
-                        ),
+                    ui.buildNotice(client, `Removed ${song[0].name} from the playlist!`, { title: "Removed song" }),
                 ],
             });
             setTimeout(() => {
@@ -77,15 +57,7 @@ module.exports = {
             console.log(err);
             const msg = await interaction.reply({
                 embeds: [
-                    new EmbedBuilder()
-                        .setColor(client.config.colorError)
-                        .setAuthor({
-                            name: "Error",
-                            iconURL: client.user.displayAvatarURL(),
-                        })
-                        .setDescription(
-                            `🚫 | Error!\n\`\`\`${err}\`\`\``
-                        ),
+                    ui.buildNotice(client, `Error!\n\`\`\`${err}\`\`\``, { error: true, title: "Error" }),
                 ],
                 ephemeral: true,
             });

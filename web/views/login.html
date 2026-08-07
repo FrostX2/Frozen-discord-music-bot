@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<meta name="theme-color" content="#0a0d14">
+<meta name="theme-color" content="#0b0e1e">
 <title>FuriMusic - Admin Login</title>
 <link rel="stylesheet" href="/style.css">
 </head>
@@ -20,7 +20,10 @@
     <p class="subtitle">Admin Panel</p>
     <form id="loginForm">
       <div class="input-group">
-        <input type="password" id="password" placeholder="Enter admin password" autocomplete="current-password" required>
+        <input type="text" id="username" placeholder="Username" autocomplete="username" required>
+      </div>
+      <div class="input-group">
+        <input type="password" id="password" placeholder="Password" autocomplete="current-password" required>
       </div>
       <label style="display:flex;align-items:center;gap:8px;margin-bottom:16px;font-size:13px;color:var(--text-dim);cursor:pointer">
         <input type="checkbox" id="remember" style="width:auto;accent-color:var(--accent)">
@@ -44,10 +47,14 @@ document.getElementById('loginForm').addEventListener('submit', async (e) => {
     const res = await fetch('/api/login', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ password: document.getElementById('password').value, remember: document.getElementById('remember').checked })
+      body: JSON.stringify({
+        username: document.getElementById('username').value,
+        password: document.getElementById('password').value,
+        remember: document.getElementById('remember').checked
+      })
     });
-    if (res.ok) { window.location.href = '/'; }
-    else { err.textContent = 'Wrong password'; err.style.display = 'block'; }
+    if (res.ok) { window.location.href = '/admin'; }
+    else { err.textContent = 'Invalid username or password'; err.style.display = 'block'; }
   } catch { err.textContent = 'Connection error'; err.style.display = 'block'; }
 });
 

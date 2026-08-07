@@ -26,11 +26,23 @@ A **FuriMusic** with instant audio, supporting **YouTube**, **Spotify**, **YouTu
 - **Volume control** — 0 to 200
 - **Auto-leave** — 2 min after queue ends, instantly if everyone ghosts
 - **Queue persistence** — SQLite-backed queue survives bot restarts, auto-join and resume if users are in voice
-- **Now-playing embed** — with requester info
+- **Redesigned now-playing embed** — a single embed in the music channel that auto-replaces itself, with a live progress bar, artist, volume, loop state and requester info
+- **Added-to-queue notifications** — paste a song name or link and get a *"Added to Queue"* card that cleans itself up after 3 seconds
+- **Clean command handling** — command messages are deleted and the bot replies 3 seconds later
 - **Admin panel** — web dashboard at `0.0.0.0:13426`
 - **Custom bots** — add and manage multiple bot tokens
 - **Invite generator** — one-click bot invite links
 - **Password-protected** — session auth with "Remember me" option
+
+---
+
+## Music Channel
+
+Every server gets a **🎵┊𝓯𝓾𝓻𝓲𝓶𝓾𝓼𝓲𝓬** text channel. It's a self-cleaning music hub:
+
+- **Paste a song name or link** — the bot plays it and posts an *"Added to Queue"* card (song title, duration, channel). Both your message and the card are deleted after **3 seconds**.
+- **One persistent now-playing embed** — when a track starts, any existing embed in the channel is cleared silently and a single redesigned now-playing embed takes its place. It stays until the track ends.
+- **Commands** — command messages are deleted immediately, and the bot replies **3 seconds** later so the channel stays clean.
 
 ---
 
@@ -130,9 +142,14 @@ auto-retries after `RECONNECT_COOLDOWN` (default 15 min). Run `/reconnect` (or
 
 ---
 
-## Admin Panel
+## Web Panel
 
-The web dashboard provides:
+Two views, split by access:
+
+- **Public status page** (`/`) — live bot status, stats, and now-playing, no login required
+- **Admin dashboard** (`/admin`) — full control, protected by username + password
+
+The admin dashboard provides:
 
 - **Dashboard** — bot status, guild count, active players, latency, Lavalink status, uptime
 - **Guilds** — list all servers with icons, member count, music channel
@@ -140,7 +157,7 @@ The web dashboard provides:
 - **Custom Bots** — add/remove/activate custom bot tokens
 - **Invite Bot** — one-click invite link generator
 
-Default password: `admin123` (change via `ADMIN_PASSWORD` in `.env`)
+Default login: `admin` / `admin123` (change via `ADMIN_USERNAME` and `ADMIN_PASSWORD` in `.env`)
 
 ---
 

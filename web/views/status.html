@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="theme-color" content="#0b0e1e">
+<title>FuriMusic - Live Status</title>
+<link rel="stylesheet" href="/status.css">
+</head>
+<body>
+<div class="app">
+  <header class="topbar">
+    <div class="brand">
+      <div class="badge">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M9 18V5l12-2v13"/>
+          <circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/>
+        </svg>
+      </div>
+      <span class="logo">FuriMusic</span>
+      <span class="version js-version">v&ndash;</span>
+    </div>
+    <div class="actions">
+      <span class="pill" id="statusPill">
+        <span class="dot" id="topbarDot"></span>
+        <span id="statusText">Loading...</span>
+      </span>
+      <a href="/admin" class="btn btn-primary">Admin Panel</a>
+    </div>
+  </header>
+
+  <main>
+    <section class="hero">
+      <div class="eq" id="eq" aria-hidden="true">
+        <span></span><span></span><span></span><span></span>
+      </div>
+      <h1 class="hero-title">FuriMusic</h1>
+      <p class="hero-sub">Live bot status &amp; now playing</p>
+      <div class="hero-status" id="heroStatus">
+        <span class="big-dot" id="bigDot"></span>
+        <span id="bigText">Loading...</span>
+      </div>
+    </section>
+
+    <section class="stats" id="stats" aria-label="Bot statistics"></section>
+
+    <section class="playing">
+      <div class="section-head">
+        <h2>Now Playing</h2>
+        <span class="count-tag" id="playingCount">0 active</span>
+      </div>
+      <div id="nowPlaying">
+        <div class="empty">Loading player activity...</div>
+      </div>
+    </section>
+  </main>
+
+  <footer class="footer">
+    <span>FuriMusic <span class="js-version">v&ndash;</span></span>
+    <a href="/admin">Admin</a>
+  </footer>
+</div>
+
+<script src="/status.js"></script>
+</body>
+</html>

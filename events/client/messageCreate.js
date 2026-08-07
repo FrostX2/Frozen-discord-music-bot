@@ -1,124 +1,98 @@
-const { EmbedBuilder } = require("discord.js");
-
-function fmt(ms) {
-  if (!ms) return "0:00";
-  const s = Math.floor(ms / 1000);
-  const m = Math.floor(s / 60);
-  const sec = s % 60;
-  return `${m}:${String(sec).padStart(2, '0')}`;
-}
+const ui = require("../../functions/ui");
 
 const textHandlers = {
-  async play(client, message, args) {
+  async play(client, message, args, ctx) {
     const keyword = args.join(" ");
-    if (!keyword) return message.reply({ embeds: [new EmbedBuilder().setColor(client.config.colorError).setDescription("Provide a song name or URL!")] });
+    if (!keyword) return ctx.reply({ embeds: [ui.buildNotice(client, "Provide a song name or URL!", { error: true })] });
     const voiceChannel = message.member.voice.channel;
-    if (!voiceChannel) return message.reply({ embeds: [new EmbedBuilder().setColor(client.config.colorError).setDescription("You must be in a voice channel!")] });
-    const msg = await message.reply({ embeds: [new EmbedBuilder().setColor(client.config.colorDefault).setDescription("Finding song...")] });
+    if (!voiceChannel) return ctx.reply({ embeds: [ui.buildNotice(client, "You must be in a voice channel!", { error: true })] });
     try {
       const song = await client.player.play(message.channel, voiceChannel, keyword, message.member);
-      const desc = song.type === 'playlist'
-        ? `Added **${song.count}** songs from playlist **${song.title}**`
-        : `Added [${song.title}](${song.url}) to the queue`;
-      const embed = new EmbedBuilder().setColor(client.config.colorDefault).setDescription(desc);
-      msg.edit({ embeds: [embed] });
+      const embed = song.type === 'playlist' ? ui.buildAddedPlaylist(client, song) : ui.buildAdded(client, song);
+      await ctx.reply({ embeds: [embed] });
     } catch (err) {
-      msg.edit({ embeds: [new EmbedBuilder().setColor(client.config.colorError).setDescription(`Error: ${err.message}`)] });
+      await ctx.reply({ embeds: [ui.buildNotice(client, `Error: ${err.message}`, { error: true })] });
     }
   },
-  async skip(client, message) {
+  async skip(client, message, args, ctx) {
     try {
       client.player.skip(message.guildId);
-      message.reply({ embeds: [new EmbedBuilder().setColor(client.config.colorDefault).setDescription("Skipped!")] });
+      await ctx.reply({ embeds: [ui.buildNotice(client, "Skipped!", { title: "Skip" })] });
     } catch (err) {
-      message.reply({ embeds: [new EmbedBuilder().setColor(client.config.colorError).setDescription(`Error: ${err.message}`)] });
+      await ctx.reply({ embeds: [ui.buildNotice(client, `Error: ${err.message}`, { error: true, title: "Skip" })] });
     }
   },
-  async stop(client, message) {
+  async stop(client, message, args, ctx) {
     await client.player.stop(message.guildId);
-    message.reply({ embeds: [new EmbedBuilder().setColor(client.config.colorDefault).setDescription("Stopped!")] });
+    await ctx.reply({ embeds: [ui.buildNotice(client, "Stopped!", { title: "Stop" })] });
   },
-  async pause(client, message) {
+  async pause(client, message, args, ctx) {
     await client.player.pause(message.guildId);
-    message.reply({ embeds: [new EmbedBuilder().setColor(client.config.colorDefault).setDescription("Paused!")] });
+    await ctx.reply({ embeds: [ui.buildNotice(client, "Paused!", { title: "Pause" })] });
   },
-  async resume(client, message) {
+  async resume(client, message, args, ctx) {
     await client.player.resume(message.guildId);
-    message.reply({ embeds: [new EmbedBuilder().setColor(client.config.colorDefault).setDescription("Resumed!")] });
+    await ctx.reply({ embeds: [ui.buildNotice(client, "Resumed!", { title: "Resume" })] });
   },
-  async volume(client, message, args) {
+  async volume(client, message, args, ctx) {
     const vol = parseInt(args[0]);
-    if (isNaN(vol) || vol < 0 || vol > 200) return message.reply({ embeds: [new EmbedBuilder().setColor(client.config.colorError).setDescription("Volume must be 0-200!")] });
+    if (isNaN(vol) || vol < 0 || vol > 200) return ctx.reply({ embeds: [ui.buildNotice(client, "Volume must be 0-200!", { error: true, title: "Volume" })] });
     client.player.setVolume(message.guildId, vol);
-    message.reply({ embeds: [new EmbedBuilder().setColor(client.config.colorDefault).setDescription(`Volume set to ${vol}%`)] });
+    await ctx.reply({ embeds: [ui.buildNotice(client, `Volume set to ${vol}%`, { title: "Volume" })] });
   },
-  async loop(client, message, args) {
+  async loop(client, message, args, ctx) {
     const type = args[0]?.toLowerCase();
     if (type === "off" || type === "0") {
       client.player.setLoop(message.guildId, false);
-      message.reply({ embeds: [new EmbedBuilder().setColor(client.config.colorDefault).setDescription("Loop off!")] });
+      await ctx.reply({ embeds: [ui.buildNotice(client, "Loop off!", { title: "Loop" })] });
     } else {
       client.player.setLoop(message.guildId, true);
-      message.reply({ embeds: [new EmbedBuilder().setColor(client.config.colorDefault).setDescription("Loop on!")] });
+      await ctx.reply({ embeds: [ui.buildNotice(client, "Loop on!", { title: "Loop" })] });
     }
   },
-  async queue(client, message) {
+  async queue(client, message, args, ctx) {
     const queue = client.player.getQueue(message.guildId);
-    if (!queue.songs.length) return message.reply({ embeds: [new EmbedBuilder().setColor(client.config.colorDefault).setDescription("Queue is empty!")] });
+    if (!queue.songs.length) return ctx.reply({ embeds: [ui.buildNotice(client, "Queue is empty!", { title: "Queue" })] });
     const tracks = queue.songs.map((s, i) => `**${i + 1}.** [${s.title}](${s.url})`).join("\n");
-    message.reply({ embeds: [new EmbedBuilder().setColor(client.config.colorDefault).setDescription(tracks.slice(0, 4000))] });
+    await ctx.reply({ embeds: [ui.buildNotice(client, tracks.slice(0, 4000), { title: "Queue" })] });
   },
-  async nowplaying(client, message) {
+  async nowplaying(client, message, args, ctx) {
     const player = require('../../lavalink').getLavalink()?.getPlayer(message.guildId);
     if (!player || !player.queue.current) {
-      return message.reply({ embeds: [new EmbedBuilder().setColor(client.config.colorError).setDescription("Nothing is playing right now.")] });
+      return ctx.reply({ embeds: [ui.buildNotice(client, "Nothing is playing right now.", { error: true, title: "Now Playing" })] });
     }
     const track = player.queue.current;
     const queue = client.player.getQueue(message.guildId);
-    const repeatMode = player.repeatMode;
-    const repeatLabel = repeatMode === 'queue' ? "List" : repeatMode === 'track' ? "Song" : "Off";
-    const status = `Volume: \`${player.volume}%\` | Repeat: \`${repeatLabel}\``;
-    const embed = new EmbedBuilder()
-      .setColor(client.config.colorDefault)
-      .setAuthor({ name: "Now Playing", iconURL: client.user.displayAvatarURL() })
-      .setDescription(`> [${track.info.title}](${track.info.uri})`)
-      .addFields([
-        { name: "Status", value: status, inline: false },
-        { name: "Duration", value: `${fmt(player.position)} / ${fmt(track.info.duration)}`, inline: true },
-        { name: "Author", value: track.info.author || "Unknown", inline: true },
-        { name: "Request by", value: queue?.current?.member?.toString() || "Unknown", inline: true },
-      ])
-      .setImage(track.info.artworkUrl)
-      .setFooter({ text: `${queue?.songs?.length || 0} songs in queue` });
-    await message.reply({ embeds: [embed] });
+    const embed = ui.buildNowPlaying(client, { track, queue, player });
+    await ctx.reply({ embeds: [embed] });
   },
-  async remove(client, message, args) {
+  async remove(client, message, args, ctx) {
     const id = parseInt(args[0]);
-    if (isNaN(id) || id < 1) return message.reply({ embeds: [new EmbedBuilder().setColor(client.config.colorError).setDescription("Provide a valid song ID!")] });
+    if (isNaN(id) || id < 1) return ctx.reply({ embeds: [ui.buildNotice(client, "Provide a valid song ID!", { error: true, title: "Remove" })] });
     try {
       const removed = client.player.remove(message.guildId, id);
-      message.reply({ embeds: [new EmbedBuilder().setColor(client.config.colorDefault).setDescription(`Removed ${removed.title} from queue!`)] });
+      await ctx.reply({ embeds: [ui.buildNotice(client, `Removed ${removed.title} from queue!`, { title: "Remove" })] });
     } catch (err) {
-      message.reply({ embeds: [new EmbedBuilder().setColor(client.config.colorError).setDescription(err.message)] });
+      await ctx.reply({ embeds: [ui.buildNotice(client, err.message, { error: true, title: "Remove" })] });
     }
   },
-  async back(client, message) {
+  async back(client, message, args, ctx) {
     try {
       await client.player.previous(message.guildId);
-      message.reply({ embeds: [new EmbedBuilder().setColor(client.config.colorDefault).setDescription("Going back!")] });
+      await ctx.reply({ embeds: [ui.buildNotice(client, "Going back!", { title: "Back" })] });
     } catch (err) {
-      message.reply({ embeds: [new EmbedBuilder().setColor(client.config.colorError).setDescription(err.message)] });
+      await ctx.reply({ embeds: [ui.buildNotice(client, err.message, { error: true, title: "Back" })] });
     }
   },
-  async filter(client, message, args) {
+  async filter(client, message, args, ctx) {
     const filters = ["off", "3d", "bassboost", "echo", "karaoke", "nightcore", "surround"];
     const choice = args[0]?.toLowerCase();
-    if (!choice) return message.reply({ embeds: [new EmbedBuilder().setColor(client.config.colorDefault).setDescription(`Filters: ${filters.join(", ")}`)] });
+    if (!choice) return ctx.reply({ embeds: [ui.buildNotice(client, `Filters: ${filters.join(", ")}`, { title: "Filter" })] });
     if (choice === "off" || filters.includes(choice)) {
-      message.reply({ embeds: [new EmbedBuilder().setColor(client.config.colorDefault).setDescription(`Filter \`${choice}\` applied!`)] });
+      await ctx.reply({ embeds: [ui.buildNotice(client, `Filter \`${choice}\` applied!`, { title: "Filter" })] });
     }
   },
-  async help(client, message) {
+  async help(client, message, args, ctx) {
     const prefix = client.config.prefix;
     const desc = [
       `**Music**`,
@@ -137,7 +111,7 @@ const textHandlers = {
       `\`${prefix}reconnect\` — Re-forge Lavalink connection`,
       `\`${prefix}fixme\` — Diagnose and repair the bot`,
     ].join('\n');
-    message.reply({ embeds: [new EmbedBuilder().setColor(client.config.colorDefault).setDescription(desc)] });
+    await ctx.reply({ embeds: [ui.buildNotice(client, desc, { title: "Help" })] });
   },
 };
 
@@ -146,21 +120,20 @@ textHandlers.p = textHandlers.play;
 textHandlers.vol = textHandlers.volume;
 textHandlers.s = textHandlers.stop;
 
-textHandlers.reconnect = async (client, message) => {
+textHandlers.reconnect = async (client, message, args, ctx) => {
   const lavalink = require('../../lavalink');
   if (lavalink.isConnected()) {
-    return message.reply({ embeds: [new EmbedBuilder().setColor(client.config.colorDefault).setDescription("The bond to the music node pulses strong. No re-forging needed.")] });
+    return ctx.reply({ embeds: [ui.buildNotice(client, "The bond to the music node pulses strong. No re-forging needed.", { title: "Reconnect" })] });
   }
-  const msg = await message.reply({ embeds: [new EmbedBuilder().setColor(client.config.colorDefault).setDescription("Re-forging the connection...")] });
   try {
     await lavalink.reconnect();
-    msg.edit({ embeds: [new EmbedBuilder().setColor(0x00FF00).setDescription("Connection restored. The music node answers once more.")] });
+    await ctx.reply({ embeds: [ui.buildNotice(client, "Connection restored. The music node answers once more.", { title: "Reconnect" })] });
   } catch (err) {
-    msg.edit({ embeds: [new EmbedBuilder().setColor(client.config.colorError).setDescription(`Re-forge failed: ${err.message}`)] });
+    await ctx.reply({ embeds: [ui.buildNotice(client, `Re-forge failed: ${err.message}`, { error: true, title: "Reconnect" })] });
   }
 };
 
-textHandlers.fixme = async (client, message) => {
+textHandlers.fixme = async (client, message, args, ctx) => {
   const lavalinkMod = require('../../lavalink');
   const lavalinkOnline = lavalinkMod.isConnected();
   const wsPing = client.ws.ping;
@@ -200,7 +173,7 @@ textHandlers.fixme = async (client, message) => {
   }
 
   const desc = [`\`\`\`asciidoc`, ...lines, `\`\`\``, ...(fixes.length ? [`**Mending performed:**`, ...fixes.map(f => `> ${f}`)] : [])].join("\n");
-  message.reply({ embeds: [new EmbedBuilder().setColor(lavalinkMod.isConnected() ? client.config.colorDefault : client.config.colorError).setDescription(desc)] });
+  await ctx.reply({ embeds: [ui.buildNotice(client, desc, { error: !lavalinkOnline })] });
 };
 
 module.exports = {
@@ -211,7 +184,7 @@ module.exports = {
 
     const prefix = message.client.config.prefix;
 
-    // Prefix commands
+    // Prefix commands — delete the command message and reply after 3 seconds
     if (message.content.startsWith(prefix)) {
       const args = message.content.slice(prefix.length).trim().split(/ +/);
       const cmd = args.shift().toLowerCase();
@@ -219,11 +192,24 @@ module.exports = {
       const handler = textHandlers[cmd];
       if (!handler) return;
 
+      message.delete().catch(() => {});
+
+      const ctx = {
+        message,
+        started: Date.now(),
+        async reply(payload, opts = {}) {
+          await ui.waitUntil(ctx.started, opts.delay ?? ui.RESPONSE_DELAY);
+          return message.channel.send(payload);
+        },
+      };
+
       try {
-        await handler(message.client, message, args);
+        await handler(message.client, message, args, ctx);
       } catch (err) {
         console.error("Text command error:", err);
-        message.reply({ embeds: [new EmbedBuilder().setColor(message.client.config.colorError).setDescription(`Error: ${err.message}`)] });
+        await ctx
+          .reply({ embeds: [ui.buildNotice(message.client, `Error: ${err.message}`, { error: true })] })
+          .catch(() => {});
       }
       return;
     }
@@ -238,17 +224,24 @@ module.exports = {
     const urlMatch = message.content.match(/https?:\/\/\S+/i);
     const query = urlMatch ? urlMatch[0] : message.content.trim();
 
+    message.delete().catch(() => {});
+
     try {
       const song = await message.client.player.play(message.channel, voiceChannel, query, message.member);
-      const desc = song.type === 'playlist'
-        ? `Added **${song.count}** songs from playlist **${song.title}**`
-        : `Added [${song.title}](${song.url}) to the queue`;
-      await message.reply({ embeds: [new EmbedBuilder().setColor(message.client.config.colorDefault).setDescription(desc)] });
+      const embed = song.type === 'playlist'
+        ? ui.buildAddedPlaylist(message.client, song)
+        : ui.buildAdded(message.client, song);
+      const reply = await message.channel.send({ embeds: [embed] });
+      setTimeout(() => {
+        reply.delete().catch(() => {});
+        message.delete().catch(() => {});
+      }, ui.RESPONSE_DELAY);
     } catch (err) {
       console.error("Auto-play error:", err);
-      await message.reply({ embeds: [new EmbedBuilder().setColor(message.client.config.colorError).setDescription(`Error: ${err.message}`)] }).catch(() => {});
-    } finally {
-      message.delete().catch(() => {});
+      const reply = await message.channel
+        .send({ embeds: [ui.buildNotice(message.client, `Error: ${err.message}`, { error: true })] })
+        .catch(() => {});
+      if (reply) setTimeout(() => reply.delete().catch(() => {}), ui.RESPONSE_DELAY);
     }
   },
 };
