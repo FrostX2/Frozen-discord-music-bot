@@ -50,8 +50,8 @@ Every server gets a **🎵┊𝓯𝓾𝓻𝓲𝓶𝓾𝓼𝓲𝓬** text channel
 
 ### 1. Clone & install
 ```bash
-git clone https://github.com/FrostX2/Frozen-discord-music-bot.git
-cd Frozen-discord-music-bot
+git clone https://github.com/FrostX2/furimusic-based.git
+cd furimusic-based
 npm install
 ```
 
